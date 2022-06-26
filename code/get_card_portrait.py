@@ -9,6 +9,20 @@ import urllib
 import string
 from urllib.request import urlretrieve
 
+def dir_from_location_name(location,allowed_special_chars = ["_",".","-"]):
+    """Generate directory name from location name (e.g. "Howling Mines")
+    """
+
+
+    #If there's a location add it next
+    f = "_".join(location.split())
+
+    #Filter out any characters that would be a problem in filenames
+    f = ''.join(char for char in f if (char.isalnum() or char in allowed_special_chars))
+
+    f = f.lower()
+
+    return f
 
 def filename_from_card_name(card_name,location="",allowed_special_chars = ["_",".","-"],number="1",extension=".png"):
     """Generate a safe filename from a card name
@@ -39,6 +53,8 @@ def filename_from_card_name(card_name,location="",allowed_special_chars = ["_","
     f += f"__{number}"
 
     f += extension
+
+    f = f.lower()
     return f
 
 def get_card_portrait_image(card_name,location,artist="N.C. Wyeth",epithet="Amazing", art_type= "Fantasy Card Art"):
