@@ -1,0 +1,7 @@
+effect_name	effect_type	required_target_types
+Deal {X} damage to a random enemy minion	deal damage	"{""random enemy minion"":1}"
+Gain {X} mana crystals	gain mana crystals	"{""controller"":1}"
+Damage controller {X}	deal damage	"{""controller"":1}"
+Heal a random friendly damaged creature {X}	heal	"{""random friendly damaged minions"":1}"
+Damage opponent {X}	deal damage	"{""opponent"":1}"
+Draw {X} cards	draw	"{""controller"":1}"
