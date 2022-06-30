@@ -8,11 +8,11 @@ from random import randint
 import urllib
 import string
 from urllib.request import urlretrieve
+import os
 
-def dir_from_location_name(location,allowed_special_chars = ["_",".","-"]):
+def dir_from_location_name(location:str, allowed_special_chars:list = ["_",".","-"]) ->str: 
     """Generate directory name from location name (e.g. "Howling Mines")
     """
-
 
     #If there's a location add it next
     f = "_".join(location.split())
@@ -24,7 +24,8 @@ def dir_from_location_name(location,allowed_special_chars = ["_",".","-"]):
 
     return f
 
-def filename_from_card_name(card_name,location="",allowed_special_chars = ["_",".","-"],number="1",extension=".png"):
+def filename_from_card_name(card_name:str,location:str="",number:int=1,\
+  allowed_special_chars:list = ["_",".","-"], extension:str=".png") ->str:
     """Generate a safe filename from a card name
     card_name = the name of the card
     location = the card location as a string "Cliffs of Howling Winds"
@@ -50,20 +51,70 @@ def filename_from_card_name(card_name,location="",allowed_special_chars = ["_","
     f += "__"
 
     #Add final number (if generating multiple portraits per card)
-    f += f"__{number}"
+    f += f"{number}"
 
     f += extension
 
     f = f.lower()
     return f
 
-def get_card_portrait_image(card_name,location,artist="N.C. Wyeth",epithet="Amazing", art_type= "Fantasy Card Art"):
+def get_prompt(card_name:str,location:str="",card_type:str="",artist:str="",\
+  epithet:str="",art_type:str="") -> str:
+    """Return an art prompt for card image generation"""
 
-    img_description = f"{card_name} in {location} ({epithet} {art_type}"
-    if artist:
-        img_description += f" by {artist}"
-    img_description += ")"
+    img_description = f"{card_name}"
+    if location:
+        img_description += f" in {location} "
+
+    if not epithet and not artist and not art_type:
+        #No more info to add - we're done
+        return img_description
     
+    img_description += "("
+    
+    if epithet:
+        img_description += f"{epithet} "
+
+    if art_type:
+        img_description += f"{art_type} "
+
+    if artist:
+        img_description += f"{artist}"
+    
+    img_description += ")"
+
+
+    if card_type and location:
+        img_description += f"A {card_type} called {card_name}, shown in a place called {location}."
+    elif card_type:
+        img_description += f"A {card_type} called {card_name}."
+
+
+    return img_description
+
+
+def get_location_dir(location,base_dir):
+    """Return the directory for a location in base_dir, creating if necessary"""
+
+    #Get the name of the directory with all card images for this location
+    location_dir = dir_from_location_name(location)
+
+    #That directory is stored inside the card portrait directory
+    location_dir_fp = os.path.join(base_dir,location_dir)
+
+    #If the directory doesn't already exist, create it
+    if not os.path.exists(location_dir_fp):
+        os.mkdir(location_dir_fp)
+
+    return location_dir_fp
+  
+def get_card_portrait_image(card_name,location,artist="",epithet="Amazing",\
+   card_type="Character",art_type= "Fantasy Card Art",card_portrait_dir = "../images/card_portraits/",max_images=3):
+
+    location_dir_fp = get_location_dir(location,card_portrait_dir)
+  
+    img_description = get_prompt(card_name,location=location,artist=artist,\
+      epithet=epithet,art_type=art_type,card_type=card_type) 
     print("Generating image:",img_description)
 
     chrome_options = Options()
@@ -77,17 +128,15 @@ def get_card_portrait_image(card_name,location,artist="N.C. Wyeth",epithet="Amaz
     driver.get('https://www.crai'+''+'yon.com/')
 
     prompt = driver.find_element(By.XPATH,'//*[@id="prompt"]')
-    print("Prompt WebElement:",prompt)
     time.sleep(randint(5,15))
     prompt.send_keys(img_description)
     draw_button = driver.find_element(By.XPATH,'//*[@id="app"]/div/div/div[1]/button')
-    print("Draw button WebElement:",draw_button)
     time.sleep(randint(1,3))
     draw_button.click()
 
     delay_minutes = 3
     for i in range(0,delay_minutes):
-        print(f"Waiting....{i}/{delay_minutes}") 
+        print(f"Waiting....{i+1}/{delay_minutes}") 
         time.sleep(60)
     print("Waiting a few extra seconds for good measure")
     time.sleep(randint(0,30))
@@ -98,12 +147,14 @@ def get_card_portrait_image(card_name,location,artist="N.C. Wyeth",epithet="Amaz
     output_image_filepaths = []
     images = driver.find_elements(By.XPATH,curr_xpath)
     for i,curr_img in enumerate(images):
+        if i >= max_images:
+            continue
         print(i,curr_img)
         src = curr_img.get_attribute('src')
         print(src)
-        outfile = filename_from_card_name(card_name,location,number=i) 
+        outfile = os.path.join(location_dir_fp,filename_from_card_name(card_name,location,number=i)) 
         print("Saving to outfile:",outfile)
-        result = urlretrieve(src, f"../data/images/card_portraits/{outfile}")
+        result = urlretrieve(src, outfile)
         print(result)
         output_image_filepaths.append(outfile)
     return output_image_filepaths
