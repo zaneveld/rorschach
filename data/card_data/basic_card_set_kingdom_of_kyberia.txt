@@ -1,0 +1,16 @@
+card_name	location	supertype	types	mana_cost	power	toughness	behavior	effects	static_abilities
+Ogre	Kingdom of Kyberia	Creature	Ogre	4	4	4	Attack Opponent		
+Soldier	Kingdom of Kyberia	Creature	"Human, Warrior"	2	2	2			
+Giant	Kingdom of Kyberia	Creature	Giant	8	8	8			
+Archer	Kingdom of Kyberia	Creature	"Human, Warrior"	3	4	1	Attack Opponent		Ranged
+Fortification	Kingdom of Kyberia	Creature	Building	2	1	5	Defend		Defend
+Fire Blast	Kingdom of Kyberia	Spell	Fire	2				"{""Deal {X} damage to a random enemy minion"":{""magnitude"":2,""damage_type"":""fire""}}"	
+Goblin Warrior	Kingdom of Kyberia	Creature	"Goblin, Warrior"	1	2	1			
+Show of Power	Kingdom of Kyberia	Spell	Royal	4				"{""Gain {X} mana crystals"":{""magnitude"":2}}"	
+Bloodmagic Ritual	Kingdom of Kyberia	Spell	Bloodmagic	3				"{""Gain {X} mana crystals"":{""magnitude"":2},""Damage controller {X}"":{""magnitude"":2,""damage_type"":""blood""}}"	
+Regeneration Ritual 	Kingdom of Kyberia	Spell	Bloodmagic	3				"{""Heal a random friendly damaged creature {X}"":{""magnitude"":10,""damage_type"":""healing""}}"	
+Consult the Dragon	Kingdom of Kyberia	Spell	Bloodmagic	5				"{""Draw {X} cards"":{""magnitude"":5},""Damage controller {X}"":{""magnitude"":5,""damage_type"":""blood""}}"	
+Flock of Vampiric Ravens	Kingdom of Kyberia	Creature	"Bird, Swarm"	3	1	2			"Flying,Parastitic"
+Peasant	Kingdom of Kyberia	Creature	Human 	0	1	1	Defend		Defend
+Spark	Kingdom of Kyberia	Spell	Electrical	1				"{""Deal {X} damage to a random enemy minion"":{""magnitude"":2,""damage_type"":""electrical""},""Draw {X} cards"":{""magnitude"":1}}"	
+Crungus	Kingdom of Kyberia 	Creature	Crungus	3	4	3	Attack Opponent		

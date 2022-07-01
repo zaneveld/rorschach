@@ -59,37 +59,50 @@ def filename_from_card_name(card_name:str,location:str="",number:int=1,\
     return f
 
 def get_prompt(card_name:str,location:str="",card_type:str="",artist:str="",\
-  epithet:str="",art_type:str="") -> str:
+  epithet:str="",art_type:str="",card_text:str="",allowed_special_chars ="(). ") -> str:
     """Return an art prompt for card image generation"""
-
     img_description = f"{card_name}"
+    print(img_description)
+    
+    print(img_description)
     if location:
-        img_description += f" in {location} "
+        img_description += f" in {location}"
 
-    if not epithet and not artist and not art_type:
-        #No more info to add - we're done
-        return img_description
+    print(img_description)
+    if epithet or artist or art_type:
     
-    img_description += "("
+        img_description += " ("
     
-    if epithet:
-        img_description += f"{epithet} "
+        if epithet:
+            img_description += f"{epithet} "
 
-    if art_type:
-        img_description += f"{art_type} "
+        if art_type:
+            img_description += f"{art_type} "
 
-    if artist:
-        img_description += f"{artist}"
+        if artist:
+            img_description += f"{artist}"
     
-    img_description += ")"
+        img_description += "). "
 
+    print(img_description)
 
     if card_type and location:
-        img_description += f"A {card_type} called {card_name}, shown in a place called {location}."
+        img_description += f"{card_name} is a type of  {card_type} shown in a place called {location}."
     elif card_type:
-        img_description += f"A {card_type} called {card_name}."
+        img_description += f"{card_name} is a type of {card_type}. "
 
-
+    if card_text and epithet and art_type:
+        img_description += f"In the {epithet} {art_type} the {card_name} is shown to {card_text}"
+    elif card_text:
+        img_description += f"The {card_name} is shown to {card_text}" 
+    
+    print(img_description)
+    img_description = img_description.replace("  "," ")
+    img_description = img_description.replace("Action","")
+    img_description = img_description.strip()
+    #Filter out any characters that would be a problem in filenames
+    img_description = ''.join(char for char in img_description if (char.isalnum() or char in allowed_special_chars))
+    img_description = ' '.join(img_description.split())
     return img_description
 
 
@@ -109,12 +122,13 @@ def get_location_dir(location,base_dir):
     return location_dir_fp
   
 def get_card_portrait_image(card_name,location,artist="",epithet="Amazing",\
-   card_type="Character",art_type= "Fantasy Card Art",card_portrait_dir = "../images/card_portraits/",max_images=3):
+   card_type="Character",art_type= "Fantasy Card Art",card_portrait_dir = "../images/card_portraits/",max_images=3,\
+   card_text = ""):
 
     location_dir_fp = get_location_dir(location,card_portrait_dir)
   
     img_description = get_prompt(card_name,location=location,artist=artist,\
-      epithet=epithet,art_type=art_type,card_type=card_type) 
+      epithet=epithet,art_type=art_type,card_type=card_type,card_text=card_text) 
     print("Generating image:",img_description)
 
     chrome_options = Options()

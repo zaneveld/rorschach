@@ -1,0 +1,2 @@
+location	location	card_back_image
+The Kingdom of Kyberia	The Kingdom of Kyberia	card_back_Blue_Woven_Cloth-01.jpg

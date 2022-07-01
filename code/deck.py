@@ -1,11 +1,11 @@
-from collections import deque,defaultdict
 from random import shuffle,choice
+from collections import deque,defaultdict
 import pandas as pd
 import  ast
-from make_card_image import make_game_card
-from get_card_portrait import dir_from_location_name,filename_from_card_name,\
+from rorschach.code.make_card_image import make_game_card
+from rorschach.code.get_card_portrait import dir_from_location_name,filename_from_card_name,\
   get_location_dir
-
+import os
 from os import listdir
 
 class EffectSet(object):
@@ -113,11 +113,17 @@ class CardSet(object):
         card_as_dict["effect_library"]=self.EffectLibrary
 
         #Make the card with the appropriate class for its supertype
+        print("ABOUT TO MAKE CARD:",card_as_dict)
         card = card_makers[card_supertype](**card_as_dict)
         return card 
  
 
 class Deck(object):
+
+    def __len__(self):
+        """Return number of cards in Deck"""
+        return(len(self.Cards))
+
     def __init__(self,cards = None):
         """Initialize a deck of cards
         cards -- a list or deque of Card objects
@@ -149,7 +155,7 @@ class Deck(object):
 
 
 class Effect(object):
-    def __init__(self,effect_name,conditions=None,targets=None,controller=None,magnitude=1,required_target_types=None,effect_type=None,damage_type="physical"):
+    def __init__(self,effect_name,conditions=None,targets=None,controller=None,magnitude=1,required_target_types=None,effect_type=None,damage_type="physical",narrative_description=""):
         """Represent a game effect
         effect_name: a string representing the unique name of the effect
         conditions: a string representing conditions on the effect
@@ -160,6 +166,8 @@ class Effect(object):
           of that target are required
         effect_type: a string representing the effect type
         damage_type: if the effect deals damage, deal this type of damage
+        narrative_description: says what the effect does, mostly as a prompt
+          for image generators
         """
 
         self.Name = effect_name
@@ -200,7 +208,7 @@ class Draw(Effect):
     def activate(self):
         """targets Draw {self.Magnitude} cards"""
         for t in self.Targets:
-            t.Draw(amount=self.Magnitude)
+            t.draw(n_cards=self.Magnitude)
     
     def __repr__(self):
         return f"Draw {self.Magnitude} cards"
@@ -273,7 +281,8 @@ class Spell(Card):
         self.setController(controller)
         self.Portrait = portrait_fp
         self.Location = location
-        self.makeCardImage()
+        print("Current Location:",location)
+        self.CardImageFilepath = self.makeCardImage()
     
     def __repr__(self):
         effects = self.Effects
@@ -289,14 +298,20 @@ class Spell(Card):
         card_type = self.CardType
         card_name = self.Name
         card_image_dir = get_location_dir(self.Location,base_dir = "../data/images/cards")
-        card_filename = filename_from_cardname(self.Name,self.Location)
+        card_filename = filename_from_card_name(self.Name,self.Location)
+        
+        if self.Effects:
+            effects = ", ".join([str(effect) for effect in self.Effects])
+        else:
+            effects = ""
 
+        card_image_fp = os.path.join(card_image_dir,card_filename)
         if  card_filename not in listdir(card_image_dir):
             card_image_fp = make_game_card(card_name,\
-              card_portrait_fp="generate",\
-              card_back="random",attack=None,health=None,\
-              cost=cost,card_text = text,card_type=card_type,\
-              card_back_dir = "../data/images/card_backgrounds")         
+              location = self.Location, card_portrait_filename="generate",\
+              card_back_filename="random",attack=None,health=None,\
+              cost=cost,card_text = effects,card_type=card_type)         
+        return card_image_fp
 	
     def setController(self,controller):
         """Set the controller of this Spell and its effects"""
@@ -314,6 +329,11 @@ class Spell(Card):
                 if target_type == "random enemy minion":
                     #print(f"Targeting {n_targets} random enemy minion(s)")
                     targets = self.Controller.getRandomEnemyMinions(n=n_targets)                
+                elif target_type == "all minions":
+                    targets = self.Controller.getAllMinions()
+                elif target_type == "all enemy minions":
+                    #print(f"Targeting {n_targets} random friendly minion(s)")
+                    targets = self.Controller.getAllEnemyMinions()                
                 elif target_type == "random friendly minion":
                     #print(f"Targeting {n_targets} random friendly minion(s)")
                     targets = self.Controller.getRandomFriendlyMinions(n=n_targets)                
@@ -323,6 +343,9 @@ class Spell(Card):
                 elif target_type == "controller":
                     #print(f"Targeting Controller")
                     targets = [effect.Controller]
+                elif target_type == "opponent":
+                    #print(f"Targeting Controller")
+                    targets = [effect.Controller.Opponent]
                 else:
                     raise NotImplementedError(f"Target type {target_type} is not recognized")
                 effect.Targets = targets
@@ -337,7 +360,7 @@ class Spell(Card):
 
 
 class Creature(Card):
-    def __init__(self,card_name,effect_library,mana_cost,location="",\
+    def __init__(self,card_name,effect_library,mana_cost=0,location="",\
         power=0,toughness=0,\
         effects="{}",supertypes="",controller=None,static_abilities="",\
         behavior="Attack Random Enemy",supertype="Creature",types="",portrait_fp=None):
@@ -358,7 +381,8 @@ class Creature(Card):
         self.Types = types.split(",")
         self.setUpEffects(effects,effect_library)
         self.Portrait = portrait_fp
-        self.makeCardImage()
+        print("Current Location:",location)
+        self.CardImageFilepath = self.makeCardImage()
 
     def __repr__(self):
         if self.checkIfDead():
@@ -366,33 +390,66 @@ class Creature(Card):
         return f"{self.Name}({self.Cost}):{self.Power}/{self.CurrentHealth}"
 
     def makeCardImage(self):
-        text = "Action — "+self.Behavior + "\n" + ", ".join([str(effect) for effect in self.Effects]) +"\n" + ",".join(self.StaticAbilities)
+        text = "Action — "+self.Behavior + "\n" + ", ".join([str(effect) for effect in self.Effects]) +"\n " + ", ".join(self.StaticAbilities)
         cost = self.Cost  
-        card_type = self.CardType 
+        if self.Types:
+            card_type = " and ".join(self.Types) 
+        else:
+            card_type = self.CardType
+
         card_name = self.Name
         card_image_dir = get_location_dir(self.Location,\
           base_dir = "../data/images/cards")
-        card_filename = filename_from_cardname(self.Name,self.Location)
+        card_filename = filename_from_card_name(self.Name,self.Location)
 
         if card_filename not in listdir(card_image_dir):
             card_image_fp = make_game_card(card_name,\
-              card_portrait_fp="generate",\
-              card_back="random",\
+              location = self.Location,\
+              card_portrait_filename="generate",\
+              card_back_filename="random",\
               attack= self.Power,health= self.Toughness,\
-              cost=cost,card_text = text,card_type=card_type,\
-              card_back_dir = "../data/images/card_backgrounds")   
+              cost=cost,card_text = text,card_type=card_type)
         else:
-            card_image_fp = os.join(card_image_dir,card_filename)
-        
+            card_image_fp = os.path.join(card_image_dir,card_filename)
+        return card_image_fp
+ 
     def attack(self,target):
         """Resolve an attack"""
 
         print(f"{self.Name} attacks {target.Name} for {self.Power} damage")        
-        self.dealDamage(target,self.Power)
-        if "Creature" in target.SuperTypes:
+        damage_dealt = self.dealDamage(target,self.Power)
+        print(f"After all abilities are resolved, {target.Name} takes {damage_dealt} damage")
+        
+        #Ranged creatures only suffer damage when defending,
+        #and only deal damage when attacking
+        if "Creature" in target.SuperTypes and\
+            "Ranged" not in target.StaticAbilties and\
+            "Ranged" not in self.StaticAbilities:
             print(f"{creature.Name} takes {target.Power} damage")
             target.dealDamage(target=self,amount=target.Power)
-    
+        elif "Ranged" in self.StaticAbilities:
+            print(f"{target.Name} doesn't get a chance to attack back because {self.Name} is Ranged")
+ 
+        if "Parasitic" in self.StaticAbilities:
+            print(f"{self.Name} parasitises {target.Name} for {damage_dealt} Health")            
+            self.healDamage(damage_dealt)
+ 
+    def canAttack(self,target):
+        """Return True if it is possible, in general, to attack target"""
+
+        if "Player" in target.SuperTypes:
+            return True
+
+        if "Creature" not in target.SuperTypes:
+            return False
+        
+        if "Flying" in target.StaticAbilities\
+          and "Flying" not in self.StaticAbilities\
+            and "Ranged" not in self.StaticAbilities:
+            return False
+        
+        return True
+ 
     def dealDamage(self,target,amount=1,damage_type="physical"):
         """Deal a certain amount of damage to a target"""
         #If the target has a special ability,
@@ -479,6 +536,7 @@ class Player(object):
         self.Health -= amount
         self.Health = max(0,self.Health)
         print(f"{self.Name} falls to {self.Health} health")
+        return amount
 
     def healDamage(self,amount=1):
         """Heal a certain amount of damage"""
@@ -497,6 +555,33 @@ class Player(object):
             random_enemy_minion = choice(enemy_board)
             targets.append(random_enemy_minion)
         return targets       
+    
+    def getAllMinions(self):
+        """Return a list of all minions"""
+        targets = []
+        targets.extend(self.getAllEnemyMinions())
+        targets.extend(self.getAllFriendlyMinions())     
+        return targets
+ 
+    def getAllEnemyMinions(self):
+        """Return a list of all enemy minions or None"""
+        
+        targets = []
+        if not self.Opponent or not self.Opponent.Board:
+            return targets  
+         
+        targets = self.Opponent.Board
+        return targets       
+
+    def getAllFriendlyMinions(self):
+        """Returns a list of all friendly minions"""
+        
+        targets = []
+        if not self.Board:
+            return targets
+
+        targets = self.Board
+        return targets
 
     def getRandomFriendlyMinions(self,n=1,positive_filter_method_name=None):
         """Return a list of n random friendly minions (allowing double-targeting) or None
@@ -529,7 +614,8 @@ class Player(object):
         
         for i in range(n):
             targets.append(choice(damaged_creatures))
-    
+   
+     
     def filterBoard(self,positive_filter_method_name=None,positive_filter_kwargs = {},\
       negative_filter_method_name=None,negative_filter_kwargs={}):
         """Return all minions on board that pass positive filter but not negative filter"""
@@ -641,7 +727,7 @@ class Game(object):
 
     def takeTurn(self,player):
         print("="*20)
-        print(f"-- {player.Name}'s turn! --")
+        print(f"-- {player.Name}'s turn! {player.Health} / {player.MaxHealth} --")
         print("="*20)
         for phase in self.Phases:
             self.doPhase(player,phase)    
@@ -696,31 +782,39 @@ class Game(object):
                 continue
             
             if creature.Behavior == "Attack Random Enemy":
+                
+
+                attacker_ranged = False
+                attacker_flying = True
+
+                if "Flying" in creature.StaticAbilities:
+                    attacker_flying = True
 
                 #first check to see if any creatures have Defender
                 targets_with_defender =\
                   player.Opponent.filterBoard(positive_filter_method_name="hasAbility",\
-                  positive_filter_kwargs={"ability":"defender"})
-                if targets_with_defender:
+                  positive_filter_kwargs={"ability":"Defend"})
+
+                
+                if targets_with_defender and not attacker_ranged:
                     targets = targets_with_defender
+                    targets = [t for t in targets if creature.canAttack(t)]
                 else:
-                    targets = [player.Opponent]
-                    targets.extend([c for c in player.Opponent.Board])
-                target = choice(targets)
-                print(f"{creature.Name} attacks {target.Name} for {creature.Power} damage")
-                target.takeDamage(creature.Power)    
-            
-                if target is not player.Opponent:
-                    print(f"{creature.Name} takes {target.Power} damage")
-                    creature.takeDamage(target.Power)
-            
+                     targets = [player.Opponent]
+                     targets.extend([c for c in player.Opponent.Board if creature.canAttack(c)])
+
+                if targets:
+                    target = choice(targets)
+                    print(f"{creature.Name} attacks {target.Name} for {creature.Power} damage")
+                    creature.attack(target)
+
             elif creature.Behavior == "Attack Opponent":
                 #first check to see if any creatures have Defender
                 targets_with_defender =\
                   player.Opponent.filterBoard(positive_filter_method_name="hasAbility",\
-                  positive_filter_kwargs={"ability":"defender"})
+                  positive_filter_kwargs={"ability":"Defend"})
                 if targets_with_defender:
-                    taret = choice(targets_with_defender)
+                    target = choice(targets_with_defender)
                 else:
                     target = player.Opponent
                 print(f"{creature.Name} attacks {target.Name} for {creature.Power} damage")
@@ -774,21 +868,23 @@ if __name__ == "__main__":
     #Demo how to set up a game
 
     #Load set data
-    card_data_filepath = "./data/card_data/basic_card_set.txt"
-    effect_data_filepath = "./data/effect_data/effect_data.txt"
+    card_data_filepath = "../data/card_data/basic_card_set.txt"
+    effect_data_filepath = "../data/effect_data/effect_data.txt"
     basic_effects = EffectSet(effect_data_filepath)
     basic_cards = CardSet(card_data_filepath,effect_library=basic_effects)
 
     #Load decks
-    player_1_name = "King Kyber"
-    player_1_deck_path = "./data/decks/King_Kyber_starter_deck.txt"
+    player_1_name = "Player"
+    player_1_deck_path = "../data/decks/latest_player_draft.tsv"
     player_1_deck_cards = load_deck(player_1_deck_path,card_library=basic_cards)
     player_1_deck = Deck(player_1_deck_cards)
     print(f"{player_1_name} decklist:", player_1_deck.toDeckList())
     player_1 = Player(name=player_1_name,deck=player_1_deck)
 
-    player_2_name = "Bloodtusk"
-    player_2_deck_path = "./data/decks/Bloodtusk_starter_deck.txt"
+    player_2_name = "King Kyber"
+    player_2_deck_path = "../data/decks/King_Kyber_starter_deck.txt"
+    #player_2_name = "Bloodtusk"
+    #player_2_deck_path = "../data/decks/Bloodtusk_starter_deck.txt"
     player_2_deck_cards = load_deck(player_2_deck_path,card_library=basic_cards)
     player_2_deck = Deck(player_2_deck_cards)
     print(f"{player_2_name} decklist:", player_2_deck.toDeckList()) 

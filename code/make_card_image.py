@@ -12,7 +12,7 @@ from random import choice
 from PIL import Image, ImageFont, ImageDraw, ImageOps,\
    ImageFilter,ImageEnhance
 
-from get_card_portrait import filename_from_card_name,dir_from_location_name,get_location_dir,get_card_portrait_image
+from rorschach.code.get_card_portrait import filename_from_card_name,dir_from_location_name,get_location_dir,get_card_portrait_image
 import textwrap
 
 def add_text_PIL(original_image,text,x,y,fontsize=30,font_fp=None,color=(0,0,0),outline=4,outline_points=50,    outline_color = (255,255,255),anchor = "la",wrap= True,max_chars_per_line:int=40):
@@ -62,6 +62,20 @@ def add_text_PIL(original_image,text,x,y,fontsize=30,font_fp=None,color=(0,0,0),
    
     return image_with_text
 
+def adjust_image(source_image,contrast = 1.0,brightness = 1.0, color=1.0):
+    """Return an adjusted image"""
+    img = source_image.copy()
+    
+    contrast_enhancer = ImageEnhance.Contrast(img)
+    img = contrast_enhancer.enhance(contrast)
+
+    color_enhancer = ImageEnhance.Color(img)
+    img = color_enhancer.enhance(color)
+
+    enhancer = ImageEnhance.Brightness(img)
+    img = enhancer.enhance(brightness)
+
+    return img
 
 def make_game_card(title:str,location:str,attack:int=None,health:int=None,cost:int=1,\
   card_text:str = "",card_type:str="",card_portrait_filename:str="generate",card_back_filename:str="random",\
@@ -80,9 +94,11 @@ def make_game_card(title:str,location:str,attack:int=None,health:int=None,cost:i
     
     title_font_size = 40
     max_title_chars = 25
-    #if len(title) > max_title_chars:
-    #    title_font_size -= 3
-    
+    if len(title) > max_title_chars:
+        title_font_size -= 3
+    elif len(title) * 1.5 < max_title_chars:
+        title_font_size = int(title_font_size * 1.5) 
+
     portrait_width = int(width - margin * 2)
     portrait_height = int(width - margin * 2)
 
@@ -136,6 +152,7 @@ def make_game_card(title:str,location:str,attack:int=None,health:int=None,cost:i
     card_image_center = card_image.resize((width-margin,height-margin))
     bluriness = 5
     card_image_center = card_image_center.filter(ImageFilter.BoxBlur(20))
+    
     #Paste the card portrait onto the card template
     card_image.paste(card_image_center,(int(margin/2),int(margin/2)))
 
@@ -161,7 +178,7 @@ def make_game_card(title:str,location:str,attack:int=None,health:int=None,cost:i
             
             #So we just pass in the base directory
             card_portrait_images = get_card_portrait_image(title,location,
-              card_type=card_type,card_portrait_dir=base_card_portrait_dir)
+              card_type=card_type,card_portrait_dir=base_card_portrait_dir,card_text=card_text)
             
             card_portrait_fp = choice(card_portrait_images)
     
@@ -178,50 +195,33 @@ def make_game_card(title:str,location:str,attack:int=None,health:int=None,cost:i
 
     #Set up title box
     card_title_box = card_image_center.copy()
-
-    #Paste an even blurrier central image
     card_title_box =\
       card_title_box.resize((portrait_width+box_indent*2,margin*2))
 
-    #reduce contrast in type box
-    contrast_enhancer = ImageEnhance.Contrast(card_title_box)
-    card_title_box = contrast_enhancer.enhance(0.3)
-
-    #reduce color in type box 
-    color_enhancer = ImageEnhance.Color(card_title_box)
-    card_title_box = color_enhancer.enhance(0.8)
-
-    #brighten type box a lot so it's readable
-    enhancer = ImageEnhance.Brightness(card_title_box)
-    card_title_box = enhancer.enhance(1.8)
-
+    #Brighten Title Box
+    card_title_box = adjust_image(card_title_box, contrast=0.3,\
+      color=0.8,brightness = 1.8) 
+    
     #Paste the card type box onto the card template
     card_image.paste(card_title_box,(left_text_edge - box_indent,\
       top_text_edge - box_indent))
 
     #Add title text
     add_text_PIL(card_image,title,fontsize=title_font_size,x=left_text_edge,\
-      y=top_text_edge,wrap=True,max_chars_per_line = max_title_chars)
+      y=top_text_edge,wrap=True,max_chars_per_line = max_title_chars,\
+      anchor="la")
     
     #Set up text box 
     box_indent = int(margin*1/2)
     text_box_image = card_image_center.copy()
     text_box_image = \
       text_box_image.resize((width - box_indent*2,margin*3+box_indent+\
-      int(box_indent*1/8)))
+      int(box_indent*1/2)+int(box_indent*1/8)))
 
-    #brighten text box a lot so it's readable
-    brightness_enhancer = ImageEnhance.Brightness(text_box_image)    
-    text_box_image = brightness_enhancer.enhance(2.5)
-
-    #reduce saturation
-    saturation_enhancer = ImageEnhance.Color(text_box_image)
-    text_box_image = saturation_enhancer.enhance(0.8)
-
-    #reduce contrast
-    contrast_enhancer = ImageEnhance.Contrast(text_box_image)
-    text_box_image = contrast_enhancer.enhance(0.3)
-    
+    #Brighten Text Box
+    text_box_image = adjust_image(text_box_image, contrast=0.3,\
+      color=0.8,brightness = 1.8)
+   
     #Actually draw the text box onto the card image
     card_image.paste(text_box_image,text_box_location)
     
@@ -238,17 +238,21 @@ def make_game_card(title:str,location:str,attack:int=None,health:int=None,cost:i
         card_type_box =\
           card_type_box.resize((portrait_width-box_indent*2,margin))
 
+        #Brighten Type Box
+        card_type_box = adjust_image(card_type_box, contrast=0.3,\
+        color=0.8,brightness = 1.8)
+
         #reduce contrast in type box
-        contrast_enhancer = ImageEnhance.Contrast(card_type_box)
-        card_type_box = contrast_enhancer.enhance(0.8)
+        #contrast_enhancer = ImageEnhance.Contrast(card_type_box)
+        #card_type_box = contrast_enhancer.enhance(0.8)
        
         #reduce color in type box 
-        color_enhancer = ImageEnhance.Color(card_type_box)
-        card_type_box = color_enhancer.enhance(0.8)
+        #color_enhancer = ImageEnhance.Color(card_type_box)
+        #card_type_box = color_enhancer.enhance(0.8)
  
         #brighten type box a lot so it's readable
-        enhancer = ImageEnhance.Brightness(card_type_box)    
-        card_type_box = enhancer.enhance(1.8)
+        #enhancer = ImageEnhance.Brightness(card_type_box)    
+        #card_type_box = enhancer.enhance(1.8)
         
         #Paste the card type box onto the card template
         card_image.paste(card_type_box,(margin+box_indent,\
@@ -302,24 +306,24 @@ if __name__ == "__main__":
     output_folder = "../data/images/cards/"
     
     # Draw example card using Python Imaging Library
-    #card_name = "Persecuted Orc"
-    #card_type = "Creature — Orc"
-    #card_text = u"Action — Defend.  Trigger - When this leaves play, damage a creature 1"
-    #cost = 1
-    #attack = 2
-    #health = 1
+    card_name = "Persecuted Orc"
+    card_type = "Creature — Orc"
+    card_text = u"Action — Defend.  Trigger - When this leaves play, damage a creature 1"
+    cost = 1
+    attack = 2
+    health = 1
+    location = "Blessed Temple of Mushrooms"
+    card_back_filename = "card_back_Decay-01.png"
+    
+    #card_name = "Basalto's Unutterable Ululation"
+    #card_type = "Spell — Enchantment"
+    #card_text = u"Trigger - When you take damage, deal 5 sonic damage to a random creature"
+    #cost = 6
+    #attack = None
+    #health = None
     #location = "Blessed Temple of Mushrooms"
     #card_back_filename = "card_back_Decay-01.png"
-    
-    card_name = "Basalto's Unutterable Ululation"
-    card_type = "Spell — Enchantment"
-    card_text = u"Trigger - When you take damage, deal 5 sonic damage to a random creature"
-    cost = 6
-    attack = None
-    health = None
-    location = "Blessed Temple of Mushrooms"
-    #card_back_filename = "card_back_Decay-01.png"
-    card_back_filename = "random"
+    #card_back_filename = "random"
 
     make_game_card(card_name,location = location, card_portrait_filename="generate", card_back_filename=card_back_filename,\
       attack=attack,health=health,cost=cost,card_text = card_text,card_type= card_type)

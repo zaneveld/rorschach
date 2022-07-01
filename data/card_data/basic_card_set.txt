@@ -1,0 +1,26 @@
+card_name	location	supertype	types	mana_cost	power	toughness	behavior	effects	static_abilities
+Ogre	Kingdom of Kyberia	Creature	Ogre	4	4	4	Attack Opponent		
+Soldier	Kingdom of Kyberia	Creature	"Human,Warrior"	2	2	2			
+Giant	Kingdom of Kyberia	Creature	Giant	8	8	8			
+Archer	Kingdom of Kyberia	Creature	"Human,Warrior"	3	3	1	Attack Opponent		Ranged
+Fortification	Kingdom of Kyberia	Creature	Building	2	1	5	Defend		Defend
+Fire Blast	Kingdom of Kyberia	Spell	Fire	2				"{""Deal {X} damage to a random enemy minion"":{""magnitude"":2,""damage_type"":""fire""}}"	
+Goblin Warrior	Kingdom of Kyberia	Creature	"Goblin,Warrior"	1	2	1			
+Show of Power	Kingdom of Kyberia	Spell	Royal	4				"{""Gain {X} mana crystals"":{""magnitude"":2}}"	
+Bloodmagic Ritual	Kingdom of Kyberia	Spell	Bloodmagic	3				"{""Gain {X} mana crystals"":{""magnitude"":2},""Damage controller {X}"":{""magnitude"":2,""damage_type"":""blood""}}"	
+Regeneration Ritual 	Kingdom of Kyberia	Spell	Bloodmagic	3				"{""Heal a random friendly damaged creature {X}"":{""magnitude"":10,""damage_type"":""healing""}}"	
+Consult the Dragon	Kingdom of Kyberia	Spell	Bloodmagic	5				"{""Draw {X} cards"":{""magnitude"":5},""Damage controller {X}"":{""magnitude"":5,""damage_type"":""blood""}}"	
+Flock of Vampiric Ravens	Kingdom of Kyberia	Creature	"Bird,Swarm"	3	1	4	Attack Opponent		"Flying,Parasitic"
+Peasant	Kingdom of Kyberia	Creature	Human 	0	1	1	Defend		Defend
+Goblin Pit Trap	Kingdom of Kyberia	Creature	Building	1	4	1	Defend		Defend
+Kyberian Eagle-Riders 	Kingdom of Kyberia	Creature	Human	3	2	3			"Flying,Ranged"
+Ogre Bloodwitch	Kingdom of Kyberia	Creature	"Ogre,Magician"	4	4	2			"Ranged,Parasitic"
+Curse of Unending Ice	Kingdom of Kyberia	Spell	Frost	4				"{""Damage opponent {X}"":{""magnitude"":2,""damage_type"":""frost""}, ""Deal {X} damage to a random enemy minion"":{""magnitude"":2,""damage_type"":""frost""}}"	
+"Avjyarga, Icewyrm Tyrant"	Kingdom of Kyberia	Creature	"Dragon, Royal"	6	6	3			Flying
+Kyberian Blizzard 	Kingdom of Kyberia	Spell	Frost	4				"{""Damage all creatures {X}"":{""magnitude"":2, ""damage_type"":""frost""}}"	
+Goblin Musketeers	Kingdom of Kyberia	Creature	"Goblin,Colonizer"	2	1	2			Ranged
+Goblin Cannon	Kingdom of Kyberia	Creature	"Goblin, Colonizer"	4	6	2			Ranged
+Goblin Settlers	Kingdom of Kyberia	Creature	"Goblin, Colonizer"	1	1	3			Defend
+Goblin War Zeppelin	Kingdom of Kyberia	Creature	"Vehicle, Airship"	6	2	6			"Flying,Ranged"
+Kyberian Mammoth Knights	Kingdom of Kyberia	Creature	"Human, Cavalry"	4	3	5			
+Avalanche!	Kingdom of Kyberia	Spell	Frost	5				"{""Deal {X} damage to a random enemy minion"":{""magnitude"":8,""damage_type"":""Frost""}}"	

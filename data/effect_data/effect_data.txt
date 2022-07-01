@@ -1,7 +1,11 @@
-effect_name	effect_type	required_target_types
-Deal {X} damage to a random enemy minion	deal damage	"{""random enemy minion"":1}"
-Gain {X} mana crystals	gain mana crystals	"{""controller"":1}"
-Damage controller {X}	deal damage	"{""controller"":1}"
-Heal a random friendly damaged creature {X}	heal	"{""random friendly damaged minions"":1}"
-Damage opponent {X}	deal damage	"{""opponent"":1}"
-Draw {X} cards	draw	"{""controller"":1}"
+effect_name	effect_type	required_target_types	narrative_description
+Deal {X} damage to a random enemy minion	deal damage	"{""random enemy minion"":1}"	"""damage an enemy"""
+Gain {X} mana crystals	gain mana crystals	"{""controller"":1}"	"""gain magical Power"""
+Damage controller {X}	deal damage	"{""controller"":1}"	"""they are harmed in the process"""
+Heal a random friendly damaged creature {X}	heal	"{""random friendly damaged minions"":1}"	"""heal the wounds of an ally"""
+Damage opponent {X}	deal damage	"{""opponent"":1}"	"""damage an enemy leader"""
+Draw {X} cards	draw	"{""controller"":1}"	"""gain knowledge"""
+Heal controller {X}	heal	"{""controller"":1}"	"""heal it's leader"""
+Damage a random friendly creature {X}	deal damage	"{""random friendly minions"":1}"	"""damaging it's own allies"""
+Deal {X} damage to 3 random enemy minions	deal damage	"{""random enemy minion"":3}"	"""damage three enemies"""
+Damage all creatures {X}	deal damage	"{""all minions"":1}"	"""damage everyone"""
