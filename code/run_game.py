@@ -14,11 +14,88 @@ SCREEN_HEIGHT = 768
 SCREEN_TITLE = "Draft Cards"
 
 
-class Draft(arcade.Window):
+class InstructionView(arcade.View):
+    """Show Instructions Screen"""
+
+    def setup(self):
+        """Set up the instruction screen"""
+        pass
+
+    def on_show_view(self):
+        """ This is run once when we switch to this view """
+        arcade.set_background_color(arcade.csscolor.DARK_SLATE_BLUE)
+
+    def on_draw(self):
+        """ Draw this view """
+        self.clear()
+        arcade.draw_text("Instructions Screen", self.window.width / 2, self.window.height / 2,
+                         arcade.color.WHITE, font_size=50, anchor_x="center")
+        arcade.draw_text("Click to advance", self.window.width / 2, self.window.height / 2-75,
+                         arcade.color.WHITE, font_size=20, anchor_x="center")
+
+    def on_mouse_press(self, _x, _y, _button, _modifiers):
+        """ If the user presses the mouse button, start the game. """
+        map_view = MapView()
+        map_view.setup()
+        self.window.show_view(map_view)
+
+class MapView(arcade.View):
+    def setup(self):
+        """Set up the Map screen"""
+        pass
+
+    def on_show_view(self):
+        """ This is run once when we switch to this view """
+        arcade.set_background_color(arcade.csscolor.BLACK)
+
+    def on_draw(self):
+        """ Draw this view """
+        self.clear()
+        arcade.draw_text("Map Screen", self.window.width / 2, self.window.height / 2,
+                         arcade.color.WHITE, font_size=50, anchor_x="center")
+        arcade.draw_text("Click to advance", self.window.width / 2, self.window.height / 2-75,
+                         arcade.color.WHITE, font_size=20, anchor_x="center")
+
+    def on_mouse_press(self, _x, _y, _button, _modifiers):
+        """ If the user presses the mouse button, start the game. """
+        draft_view = DraftView()
+        draft_view.setup()
+        self.window.show_view(draft_view)
+
+
+
+
+class GameView(arcade.View):
+    def setup(self):
+        """Set up the Map screen"""
+        pass
+
+    def on_show_view(self):
+        """ This is run once when we switch to this view """
+        arcade.set_background_color(arcade.csscolor.Amazon)
+
+    def on_draw(self):
+        """ Draw this view """
+        self.clear()
+        arcade.draw_text("Game Screen", self.window.width / 2, self.window.height / 2,
+                         arcade.color.WHITE, font_size=50, anchor_x="center")
+        arcade.draw_text("Click to advance", self.window.width / 2, self.window.height / 2-75,
+                         arcade.color.WHITE, font_size=20, anchor_x="center")
+
+    def on_mouse_press(self, _x, _y, _button, _modifiers):
+        """ If the user presses the mouse button, start the game. """
+        map_view = MapView()
+        map_view.setup()
+        self.window.show_view(map_view)
+
+   
+
+class DraftView(arcade.View):
     """ Main application class. """
 
     def __init__(self):
-        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+        super().__init__()
+        #super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
 
         #Load set data
         card_data_filepath = "../data/card_data/basic_card_set.txt"
@@ -46,6 +123,8 @@ class Draft(arcade.Window):
         # Done as a ratio to the mat size.
         self.MatToCardSizeRatio = 1.25
 
+        self.VerticalCardStackOffset = int(1/8 * self.CardHeight)
+        
         # How big are mats compared to cards?
         self.MatWidth = int(self.MatToCardSizeRatio * self.CardWidth)
         self.MatHeight = int(self.MatToCardSizeRatio * self.CardHeight)
@@ -61,7 +140,7 @@ class Draft(arcade.Window):
           self.MatHeight * self.VerticalMarginRatio
 
 
-        #Save the y position of the top row of cards (4 piles)
+        #Save the y position of the top row of cards (7 piles)
         self.TopRowY = SCREEN_HEIGHT - self.MatHeight/2 \
           - self.MatHeight * self.VerticalMarginRatio 
         
@@ -140,6 +219,8 @@ class Draft(arcade.Window):
         # Sprite list with all the mats tha cards lay on.
         self.MatList = arcade.SpriteList()
         mat_color = arcade.csscolor.DARK_OLIVE_GREEN
+        deck_color = arcade.csscolor.DARK_SLATE_BLUE
+        discard_color = arcade.csscolor.DARK_ORANGE
 
          
         # Create the seven middle piles
@@ -148,7 +229,7 @@ class Draft(arcade.Window):
             pile = arcade.SpriteSolidColor(self.MatWidth, self.MatHeight,\
               mat_color)
             pile.position = self.CardStartX +\
-              i * self.XSpacing,self.MiddleRowY
+              i * self.XSpacing,self.TopRowY
             
             self.MatList.append(pile)        
         
@@ -160,25 +241,6 @@ class Draft(arcade.Window):
             self.CardList[i].position = self.MatList[current_mat].position
             current_mat +=1 
 
-        # Create the mat for the drafted cards
-        drafted_card_mat = arcade.SpriteSolidColor(self.MatWidth,\
-          self.MatHeight,mat_color)
-       
-        self.DeckMat = drafted_card_mat 
-
-        drafted_card_mat.position = self.CardStartX, self.CardStartY
-        self.MatList.append(drafted_card_mat)
-
-        #Create a mat for discarded cards        
-        discard_mat = arcade.SpriteSolidColor(self.MatWidth,\
-          self.MatHeight,mat_color)
-
-        discard_mat.position =\
-          self.CardStartX + self.XSpacing, self.CardStartY
-        self.DiscardMat = discard_mat
-
-        self.MatList.append(discard_mat)
- 
 
         #Create objects to hold our actual deck and discarded pile
         self.Deck = []
@@ -191,23 +253,55 @@ class Draft(arcade.Window):
 
 
         self.DeckSize = 15
+        self.DiscardSize = 10
 
+        # Create the mat for the drafted Deck cards
+        self.DeckMat = arcade.SpriteSolidColor(self.MatWidth,\
+          self.MatHeight*2,deck_color)
+       
+        # Set the Deck position 
+        self.DeckMat.position =\
+          self.CardStartX, self.CardStartY + self.MatHeight/2
+        
+        self.MatList.append(self.DeckMat)
+
+        #Put some text right below the deck mat
         title_font_size = 20
-        self.Title = arcade.Text(
-            "Drag Cards to your Deck (blue) or to Discard (red)",
-            self.ScreenWidth/2,
-            self.TopRowY + self.MatHeight/2,
-            arcade.color.BLACK,
+        self.DeckReport = arcade.Text(
+            f"Deck:{len(self.Deck)} / {self.DeckSize}",
+            self.CardStartX - self.MatWidth/2,
+            self.MiddleRowY + self.MatHeight/4,
+            deck_color,
             title_font_size,
             bold = True,
-            width=self.ScreenWidth,
-            align="center",
+            width=self.ScreenWidth/2,
+            align="left",
         )
 
-        self.Report = arcade.Text(
-            f"Deck:{len(self.Deck)} / {self.DeckSize} \t Discard:{len(self.Discard)}",
-            self.ScreenWidth/2,
-            self.TopRowY + self.MatHeight/4,
+        #Create a mat for discarded cards        
+        self.DiscardMat = arcade.SpriteSolidColor(self.MatWidth,\
+          self.MatHeight*2,discard_color)
+
+        self.DiscardMat.position =\
+          self.CardStartX + self.XSpacing*2, self.CardStartY + self.MatHeight/2
+
+        self.MatList.append(self.DiscardMat)
+ 
+        self.DiscardReport = arcade.Text(
+            f"Discard:{len(self.Discard)} / {self.DiscardSize}",
+            self.CardStartX + self.XSpacing - self.MatWidth/2,
+            self.MiddleRowY + self.MatHeight/4,
+            discard_color,
+            title_font_size,
+            bold = True,
+            width=self.ScreenWidth/2,
+            align="center",
+        )
+    
+        self.Title = arcade.Text(
+            "Drag Cards to your Deck (blue)\n or to Discard (red)",
+            self.CardStartX+self.XSpacing*3-self.MatWidth/2,
+            self.CardStartY,   
             arcade.color.BLACK,
             title_font_size,
             bold = True,
@@ -215,15 +309,13 @@ class Draft(arcade.Window):
             align="center",
         )
 
-
-
     
     def pull_to_top(self, card: arcade.Sprite):
         """ Pull card to top of rendering order (last to render, looks on-top)        """
-
-        # Remove, and append to the end
-        self.CardList.remove(card)
-        self.CardList.append(card)
+        if card.Active:
+            # Remove, and append to the end
+            self.CardList.remove(card)
+            self.CardList.append(card)
 
     def on_mouse_press(self, x, y, button, key_modifiers):
         """ Called when the user presses a mouse button. """
@@ -259,7 +351,8 @@ class Draft(arcade.Window):
 
         # Draw Title
         self.Title.draw()
-        self.Report.draw()
+        self.DeckReport.draw()
+        self.DiscardReport.draw()
 
         # Draw the mats the cards go on to
         self.MatList.draw()
@@ -289,45 +382,64 @@ class Draft(arcade.Window):
         if not primary_card.Active:
             #Can't move dead cards
             pass
+
         elif arcade.check_for_collision(primary_card, mat):
-
-            # For each held card, move it to the pile we dropped on
-            for i, dropped_card in enumerate(self.HeldCards):
-                # Move cards to proper position
-                dropped_card.position = mat.center_x, mat.center_y
-
-            # Success, don't reset position of cards
-            reset_position = False
-            
-            #Finally, see if cards should be added to the deck 
-            #or discard
-            if mat is self.DeckMat:
-                self.Deck.append(primary_card)
+            #Check if cards should be added to deck or discard
+            if mat is self.DeckMat and len(self.Deck) < self.DeckSize and primary_card.Active:
+                # Success, don't reset position of cards
+                reset_position = False
                 primary_card.Active = False
-                print("Current cards:",[c.name+"\n" for c in self.Deck])
-                self.Report.text = f"Deck:{len(self.Deck)} / {self.DeckSize} \t Discard:{len(self.Discard)}"
+                #print("Current cards:",[c.name+"\n" for c in self.Deck])
+                self.DeckReport.text = f"Deck:{len(self.Deck)} / {self.DeckSize}"
+                
+                # For each held card, move it to the pile we dropped on
+                for i, dropped_card in enumerate(self.HeldCards):
+                    # Move cards to proper position
+                    self.Deck.append(dropped_card)
+                    dropped_card.Active = False
+                    vertical_card_offset = self.get_card_pile_offset(self.Deck,self.DeckSize)
+                    dropped_card.position = mat.center_x, mat.center_y + vertical_card_offset
+
+    
                 if len(self.Deck) == self.DeckSize:
                     self.writeDeckToFile(self.DeckFile)
                     self.writeDeckToFile("../data/decks/latest_player_draft.tsv")
-                    exit()
-            elif mat is self.DiscardMat:
-                self.Discard.append(primary_card)
+                    
+                    #Draft Finished! Exit to Game!
+                    game_view = GameView()
+                    game_view.setup()
+                    self.window.show_view(game_view)  
+            elif mat is self.DiscardMat and len(self.Discard) < self.DiscardSize and primary_card.Active:
+                # Success, don't reset position of cards
                 primary_card.Active = False
-                print("Discarded cards:",[c.name+"\n" for c in self.Discard])
-                self.Report.text = f"Deck:{len(self.Deck)} / {self.DeckSize} \t Discard:{len(self.Discard)}"
+                reset_position = False
+                
+                # For each held card, move it to the pile we dropped on
+                for i, dropped_card in enumerate(self.HeldCards):
+                    # Move cards to proper position
+                    self.Discard.append(dropped_card)
+                    dropped_card.Active = False
+                    vertical_card_offset = self.get_card_pile_offset(self.Discard,self.DiscardSize)
+                    dropped_card.position = mat.center_x, mat.center_y + vertical_card_offset
+
+                self.DiscardReport.text = f"Discard:{len(self.Discard)} / {self.DiscardSize}"
         
         if reset_position:
             # Where-ever we were dropped, it wasn't valid. 
             # Reset the each card's position to its original spot.
             for i, returned_card in enumerate(self.HeldCards):
                 returned_card.position = self.HeldCardsOriginalPosition[i]
-
+                
         for c in self.HeldCards:
             c.scale = self.CardScale
 
         self.HeldCards = []
         self.HeldCardsOriginalPosition = []
-        
+    
+    def get_card_pile_offset(self,card_stack,max_stack_size):
+        """Get an offset for each card in pile"""
+        return -1 * len(card_stack)*self.VerticalCardStackOffset + int(round(max_stack_size/2))*self.VerticalCardStackOffset
+
     def on_mouse_motion(self, x: float, y: float, dx: float, dy: float):
         """ User moves mouse """
          
@@ -373,10 +485,11 @@ class Card(arcade.Sprite):
 
 def main():
     """ Main function """
-    window = Draft()
-    window.setup()
+    window = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+    instruction_view = InstructionView()
+    window.show_view(instruction_view)
+    instruction_view.setup()
     arcade.run()
-
 
 if __name__ == "__main__":
     main()

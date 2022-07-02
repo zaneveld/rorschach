@@ -7,61 +7,7 @@ from rorschach.code.get_card_portrait import dir_from_location_name,filename_fro
   get_location_dir
 import os
 from os import listdir
-
-class EffectSet(object):
-    """Represents the set of effects in the game
-    """
-    def __init__(self,set_data_fp):
-        """A CardSet represents the set of cards that can be in the game
-
-        set_data_fp: the path to the .tsv text file holding effect data
-        """
-        
-        effect_data = pd.read_csv(set_data_fp,sep="\t")
-        effect_data.dropna(axis=0,how="all", inplace=True) 
-        effect_data.dropna(axis=1,how="all", inplace=True) 
-        effects_to_make = list(effect_data["effect_name"])
-        effect_data.set_index("effect_name",inplace=True,drop=False)
-        self.EffectData = effect_data
-        
-        #References to actual objects that handle each type of effect
-        self.EffectMakers =\
-          {\
-            "deal damage":DealDamage,
-            "gain mana crystals":GainManaCrystals,
-            "heal":Heal,
-            "draw":Draw
-          }
-    
-        self.Effects = self.makeEffects(effects_to_make) 
-    
-    def makeEffects(self,effect_names):
-        """Generate effects of a given type
-        effect_names: a list of the effects of the cards to make
-        """
-        effects = []
-        for effect_name in effect_names:
-            effect = self.makeEffect(effect_name)
-            effects.append(effect)
-        return effects
-
-    def makeEffect(self,effect_name,**kwargs):
-        """Generate an effect
-        effect name - base name of the effect (may include {X} placeholders)
-        magnitude - the size of the effect (replaces {X})
-        """
-        effect_as_dict = self.EffectData.loc[effect_name,:].to_dict()
-
-        ##drop empty values:
-        effect_as_dict = {k:v for k,v in effect_as_dict.items() if (v and not pd.isna(v))}
-        effect_as_dict.update(kwargs)
-        print("Updated effect as dict:", effect_as_dict)
- 
-        effect_type = effect_as_dict["effect_type"]
-        effect_maker = self.EffectMakers[effect_type]
-        
-        effect = effect_maker(**effect_as_dict)
-        return effect           
+from rorschach.code.effect import EffectSet,Effect,DealDamage,Draw,GainManaCrystals,Heal
 
 class CardSet(object):
     """Represents a set of cards
@@ -153,40 +99,6 @@ class Deck(object):
             cards[str(card)] +=1
         return "\n".join(["\t".join([str(k),str(cards[k])]) for k in cards.keys()])
 
-
-class Effect(object):
-    def __init__(self,effect_name,conditions=None,targets=None,controller=None,magnitude=1,required_target_types=None,effect_type=None,damage_type="physical",narrative_description=""):
-        """Represent a game effect
-        effect_name: a string representing the unique name of the effect
-        conditions: a string representing conditions on the effect
-        targets: actual targets of the specific effect (references to e.g. Creature or Player objects)
-        controller: a reference to a Player object or None
-        magnitude: an integer representing the size of the effect (for effects with {X} in the title)
-        required_target_types: a dict of str:int listing each type of target required and how many of 
-          of that target are required
-        effect_type: a string representing the effect type
-        damage_type: if the effect deals damage, deal this type of damage
-        narrative_description: says what the effect does, mostly as a prompt
-          for image generators
-        """
-
-        self.Name = effect_name
-        self.Targets = targets or []
-        self.Controller = controller
-        self.Conditions = conditions or []
-        self.Magnitude = int(magnitude)
-        self.DamageType = damage_type
-        self.RequiredTargets = required_target_types or {}
-        self.RequiredTargets = ast.literal_eval(self.RequiredTargets)
-        print(self.RequiredTargets)
-        self.RequiredTargets = {k:int(v) for k,v in self.RequiredTargets.items()} 
-        self.EffectType = effect_type
-
-    def activate(self):
-        """Activate the effect"""
-        #Defined by subclasses
-        pass
-
 class DealDamage(Effect):
     """Deal {magnitude} damage to required targets"""
     
@@ -203,39 +115,6 @@ class DealDamage(Effect):
 
         return f"Deal {self.Magnitude} damage to {target_text}"
 
-class Draw(Effect):
-    
-    def activate(self):
-        """targets Draw {self.Magnitude} cards"""
-        for t in self.Targets:
-            t.draw(n_cards=self.Magnitude)
-    
-    def __repr__(self):
-        return f"Draw {self.Magnitude} cards"
-
-class Heal(Effect):
-    """Heal targets of {self.Magnitude} damage"""
-    
-    def activate(self):
-        """Heal {self.Magnitude} damage to targets"""
-        for t in self.Targets:
-            t.healDamage(amount=self.Magnitude,damage_type=self.DamageType)
-    
-    def __repr__(self):
-        return f"Heal targets {self.Magnitude}"
-
-
-class GainManaCrystals(Effect):
-    """Controller gains {self.Magnitude} mana crystals"""
-    
-    def activate(self):
-        """Gain {self.Magnitude} mana crystals"""
-        if self.Controller:
-            self.Controller.gainTotalMana(amount=self.Magnitude)
-    
-    def __repr__(self):
-        return f"Gain {self.Magnitude} mana crystals"     
-   
 class Card(object):
     """Superclass for Spells and Creatures"""
     
@@ -251,11 +130,8 @@ class Card(object):
         
         #Effect text should be a dict of effect name: magnitude
         effect_dict = ast.literal_eval(effect_text)
-
-
         for effect_name,effect_params in effect_dict.items():
             #effect params are passed on to makeEffect as a kwargs
-
             #convert numeric params to ints
             for p in numeric_params:
                 if p in effect_params:
@@ -266,7 +142,8 @@ class Card(object):
 
 class Spell(Card):
     def __init__(self,card_name,mana_cost,effects,effect_library,\
-      location="",behavior="Temporary Effect",controller = None,types=[],supertype="Spell",portrait_fp=None):
+      location="",behavior="Temporary Effect",controller = None,types=[],supertype="Spell",portrait_fp=None,\
+      card_back_filename="random"):
         """A spell 
         card_name -- the name of the card
         mana_cost -- the mana cost of the spell (integer)
@@ -282,7 +159,8 @@ class Spell(Card):
         self.Portrait = portrait_fp
         self.Location = location
         print("Current Location:",location)
-        self.CardImageFilepath = self.makeCardImage()
+        self.CardBackFilename = card_back_filename
+        self.CardImageFilepath = self.makeCardImage(self.CardBackFilename)
     
     def __repr__(self):
         effects = self.Effects
@@ -292,7 +170,7 @@ class Spell(Card):
             effects = ""
         return f"{self.Name}({self.Cost}):{effects}"
     
-    def makeCardImage(self):
+    def makeCardImage(self,card_back_filename="random"):
         text = ", ".join([str(effect) for effect in self.Effects])
         cost = self.Cost 
         card_type = self.CardType
@@ -309,7 +187,7 @@ class Spell(Card):
         if  card_filename not in listdir(card_image_dir):
             card_image_fp = make_game_card(card_name,\
               location = self.Location, card_portrait_filename="generate",\
-              card_back_filename="random",attack=None,health=None,\
+              card_back_filename=card_back_filename,attack=None,health=None,\
               cost=cost,card_text = effects,card_type=card_type)         
         return card_image_fp
 	
@@ -327,25 +205,21 @@ class Spell(Card):
                 
                 effect.Targets = []                
                 if target_type == "random enemy minion":
-                    #print(f"Targeting {n_targets} random enemy minion(s)")
                     targets = self.Controller.getRandomEnemyMinions(n=n_targets)                
                 elif target_type == "all minions":
                     targets = self.Controller.getAllMinions()
                 elif target_type == "all enemy minions":
-                    #print(f"Targeting {n_targets} random friendly minion(s)")
                     targets = self.Controller.getAllEnemyMinions()                
                 elif target_type == "random friendly minion":
-                    #print(f"Targeting {n_targets} random friendly minion(s)")
                     targets = self.Controller.getRandomFriendlyMinions(n=n_targets)                
                 elif target_type == "random friendly damaged minions":
-                    #print(f"Targeting {n_targets} random friendly damaged minion(s)")
                     targets = self.Controller.getRandomFriendlyDamagedMinions(n=n_targets)
                 elif target_type == "controller":
-                    #print(f"Targeting Controller")
                     targets = [effect.Controller]
                 elif target_type == "opponent":
-                    #print(f"Targeting Controller")
                     targets = [effect.Controller.Opponent]
+                elif target_type == "all players":
+                    targets = [effect.Controller,effect.Controller.Opponent]
                 else:
                     raise NotImplementedError(f"Target type {target_type} is not recognized")
                 effect.Targets = targets
@@ -363,7 +237,7 @@ class Creature(Card):
     def __init__(self,card_name,effect_library,mana_cost=0,location="",\
         power=0,toughness=0,\
         effects="{}",supertypes="",controller=None,static_abilities="",\
-        behavior="Attack Random Enemy",supertype="Creature",types="",portrait_fp=None):
+        behavior="Attack Random Enemy",supertype="Creature",types="",portrait_fp=None,card_back_filename="random"):
         """Make a new creature card
         """
         self.Name = card_name
@@ -378,18 +252,20 @@ class Creature(Card):
         self.Controller = controller
         self.StaticAbilities = static_abilities.split(",")
         self.SuperTypes = supertypes.split(",") 
+        self.SuperTypes.append(supertype)
         self.Types = types.split(",")
         self.setUpEffects(effects,effect_library)
         self.Portrait = portrait_fp
         print("Current Location:",location)
-        self.CardImageFilepath = self.makeCardImage()
+        self.CardBackFilename = card_back_filename
+        self.CardImageFilepath = self.makeCardImage(card_back_filename)
 
     def __repr__(self):
         if self.checkIfDead():
             return f"{self.Name} (Dead)"
         return f"{self.Name}({self.Cost}):{self.Power}/{self.CurrentHealth}"
 
-    def makeCardImage(self):
+    def makeCardImage(self,card_back_filename="random"):
         text = "Action — "+self.Behavior + "\n" + ", ".join([str(effect) for effect in self.Effects]) +"\n " + ", ".join(self.StaticAbilities)
         cost = self.Cost  
         if self.Types:
@@ -406,7 +282,7 @@ class Creature(Card):
             card_image_fp = make_game_card(card_name,\
               location = self.Location,\
               card_portrait_filename="generate",\
-              card_back_filename="random",\
+              card_back_filename=card_back_filename,\
               attack= self.Power,health= self.Toughness,\
               cost=cost,card_text = text,card_type=card_type)
         else:
@@ -423,7 +299,7 @@ class Creature(Card):
         #Ranged creatures only suffer damage when defending,
         #and only deal damage when attacking
         if "Creature" in target.SuperTypes and\
-            "Ranged" not in target.StaticAbilties and\
+            "Ranged" not in target.StaticAbilities and\
             "Ranged" not in self.StaticAbilities:
             print(f"{creature.Name} takes {target.Power} damage")
             target.dealDamage(target=self,amount=target.Power)
@@ -438,16 +314,20 @@ class Creature(Card):
         """Return True if it is possible, in general, to attack target"""
 
         if "Player" in target.SuperTypes:
+            print(f"{target.Name} is a player, so {self.Name} can attack it")
             return True
 
-        if "Creature" not in target.SuperTypes:
+        if "Creature" not in target.CardType:
+            print(f"{target.Name} is not a player or creature, so {self.Name} can't attack it")
             return False
         
         if "Flying" in target.StaticAbilities\
           and "Flying" not in self.StaticAbilities\
             and "Ranged" not in self.StaticAbilities:
+            print(f"{target.Name} is Flying, but {self.Name} doesn't have Flying or Ranged, so {self.Name} can't attack it")
             return False
-        
+       
+        print(f"No special rules apply, {self.Name} can attack {target.Name}") 
         return True
  
     def dealDamage(self,target,amount=1,damage_type="physical"):
@@ -785,27 +665,41 @@ class Game(object):
                 
 
                 attacker_ranged = False
-                attacker_flying = True
+                attacker_flying = False
 
                 if "Flying" in creature.StaticAbilities:
                     attacker_flying = True
+                if "Ranged" in creature.StaticAbilities:
+                    attacker_ranged = True
 
                 #first check to see if any creatures have Defender
                 targets_with_defender =\
                   player.Opponent.filterBoard(positive_filter_method_name="hasAbility",\
                   positive_filter_kwargs={"ability":"Defend"})
-
                 
+                if targets_with_defender:
+                    print(f"The following enemy creatures have Defend: {[t.Name for t in targets_with_defender]}")
+                targets = []
                 if targets_with_defender and not attacker_ranged:
+                    print("Some enemies have defender and attacker is not ranged ... it must target a creature with defender")
                     targets = targets_with_defender
                     targets = [t for t in targets if creature.canAttack(t)]
-                else:
+                    if not targets:
+                        print("Couldn't attack any enemies with Defender")
+                #If we didn't resolve Defend abilities
+                #or no Defenders can be attacked, pick a random target we can attack
+                if not targets:
+                      
                      targets = [player.Opponent]
-                     targets.extend([c for c in player.Opponent.Board if creature.canAttack(c)])
-
+                     for possible_target in player.Opponent.Board:
+                        can_attack = creature.canAttack(possible_target)
+                        print(f"{creature.Name} can attack {possible_target.Name} --> {can_attack}")
+                        if can_attack:
+                            targets.append(possible_target)
+                
                 if targets:
+                    print(f"Choosing randomly from the following targets: {[t.Name for t in targets]}")
                     target = choice(targets)
-                    print(f"{creature.Name} attacks {target.Name} for {creature.Power} damage")
                     creature.attack(target)
 
             elif creature.Behavior == "Attack Opponent":
