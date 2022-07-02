@@ -7,7 +7,7 @@ from rorschach.code.get_card_portrait import dir_from_location_name,filename_fro
   get_location_dir
 import os
 from os import listdir
-from rorschach.code.effect import EffectSet,Effect,DealDamage,Draw,GainManaCrystals,Heal
+from rorschach.code.effect import EffectSet,Effect,DealDamage,Draw,GainManaCrystals,Heal,DiscardRandom
 
 class CardSet(object):
     """Represents a set of cards
@@ -139,70 +139,13 @@ class Card(object):
             effect = effect_library.makeEffect(effect_name,**effect_params)
             self.Effects.append(effect)
         return True
-
-class Spell(Card):
-    def __init__(self,card_name,mana_cost,effects,effect_library,\
-      location="",behavior="Temporary Effect",controller = None,types=[],supertype="Spell",portrait_fp=None,\
-      card_back_filename="random"):
-        """A spell 
-        card_name -- the name of the card
-        mana_cost -- the mana cost of the spell (integer)
-        effects -- a list of Effect objects
-        """
-
-        self.Name = card_name
-        self.Cost = mana_cost
-        self.CardType = "Spell"
-        self.Behavior = behavior
-        self.setUpEffects(effects,effect_library)
-        self.setController(controller)
-        self.Portrait = portrait_fp
-        self.Location = location
-        print("Current Location:",location)
-        self.CardBackFilename = card_back_filename
-        self.CardImageFilepath = self.makeCardImage(self.CardBackFilename)
-    
-    def __repr__(self):
-        effects = self.Effects
-        if effects:
-            effects = ",".join([str(effect) for effect in self.Effects])
-        else:
-            effects = ""
-        return f"{self.Name}({self.Cost}):{effects}"
-    
-    def makeCardImage(self,card_back_filename="random"):
-        text = ", ".join([str(effect) for effect in self.Effects])
-        cost = self.Cost 
-        card_type = self.CardType
-        card_name = self.Name
-        card_image_dir = get_location_dir(self.Location,base_dir = "../data/images/cards")
-        card_filename = filename_from_card_name(self.Name,self.Location)
-        
-        if self.Effects:
-            effects = ", ".join([str(effect) for effect in self.Effects])
-        else:
-            effects = ""
-
-        card_image_fp = os.path.join(card_image_dir,card_filename)
-        if  card_filename not in listdir(card_image_dir):
-            card_image_fp = make_game_card(card_name,\
-              location = self.Location, card_portrait_filename="generate",\
-              card_back_filename=card_back_filename,attack=None,health=None,\
-              cost=cost,card_text = effects,card_type=card_type)         
-        return card_image_fp
-	
-    def setController(self,controller):
-        """Set the controller of this Spell and its effects"""
-        self.Controller = controller
-        for effect in self.Effects:
-            effect.Controller = self.Controller
-    
+ 
     def getTargets(self):
-        """Get targets for each effect in the spell, return False if missing targets"""
+        """Get targets for each effect in the card ability, return False if missing targets"""
         required_targets_assigned = True
         for effect in self.Effects:
             for target_type,n_targets in effect.RequiredTargets.items():
-                
+                print("Looking for target of type:",target_type," x",n_targets)        
                 effect.Targets = []                
                 if target_type == "random enemy minion":
                     targets = self.Controller.getRandomEnemyMinions(n=n_targets)                
@@ -227,46 +170,8 @@ class Spell(Card):
                     required_targets_assigned = False
         return required_targets_assigned
        
-    def activate(self):
-        """Resolve the effects of the Spell"""
-        for i,effect in enumerate(self.Effects):
-            effect.activate()
 
-
-class Creature(Card):
-    def __init__(self,card_name,effect_library,mana_cost=0,location="",\
-        power=0,toughness=0,\
-        effects="{}",supertypes="",controller=None,static_abilities="",\
-        behavior="Attack Random Enemy",supertype="Creature",types="",portrait_fp=None,card_back_filename="random"):
-        """Make a new creature card
-        """
-        self.Name = card_name
-        self.Power = int(power)
-        self.Toughness = int(toughness)
-        self.Cost = int(mana_cost)
-        self.CardType = supertype
-        self.Behavior = behavior
-        self.Location = location
-        self.CurrentHealth = self.Toughness
-        self.Dead = False
-        self.Controller = controller
-        self.StaticAbilities = static_abilities.split(",")
-        self.SuperTypes = supertypes.split(",") 
-        self.SuperTypes.append(supertype)
-        self.Types = types.split(",")
-        self.setUpEffects(effects,effect_library)
-        self.Portrait = portrait_fp
-        print("Current Location:",location)
-        self.CardBackFilename = card_back_filename
-        self.CardImageFilepath = self.makeCardImage(card_back_filename)
-
-    def __repr__(self):
-        if self.checkIfDead():
-            return f"{self.Name} (Dead)"
-        return f"{self.Name}({self.Cost}):{self.Power}/{self.CurrentHealth}"
-
-    def makeCardImage(self,card_back_filename="random"):
-        text = "Action — "+self.Behavior + "\n" + ", ".join([str(effect) for effect in self.Effects]) +"\n " + ", ".join(self.StaticAbilities)
+    def makeCardImage(self,card_back_filename="random",text="",power=None,toughness=None):
         cost = self.Cost  
         if self.Types:
             card_type = " and ".join(self.Types) 
@@ -283,11 +188,92 @@ class Creature(Card):
               location = self.Location,\
               card_portrait_filename="generate",\
               card_back_filename=card_back_filename,\
-              attack= self.Power,health= self.Toughness,\
+              attack=power,health=toughness,\
               cost=cost,card_text = text,card_type=card_type)
         else:
             card_image_fp = os.path.join(card_image_dir,card_filename)
         return card_image_fp
+
+    def activate(self):
+        """Resolve the effects of the card's activated ability"""
+        for i,effect in enumerate(self.Effects):
+            effect.activate()
+    
+    def setController(self,controller):
+        """Set the controller of this Spell and its effects"""
+        self.Controller = controller
+        for effect in self.Effects:
+            effect.Controller = self.Controller
+ 
+
+class Spell(Card):
+    def __init__(self,card_name,mana_cost,effects,effect_library,\
+      location="",behavior="Temporary Effect",controller = None,types=[],supertype="Spell",portrait_fp=None,\
+      card_back_filename="random"):
+        """A spell 
+        card_name -- the name of the card
+        mana_cost -- the mana cost of the spell (integer)
+        effects -- a list of Effect objects
+        """
+        self.Name = card_name
+        self.Cost = mana_cost
+        self.CardType = "Spell"
+        self.Types = types
+        self.Behavior = behavior
+        self.setUpEffects(effects,effect_library)
+        self.setController(controller)
+        self.Portrait = portrait_fp
+        self.Location = location
+        print("Current Location:",location)
+        self.CardBackFilename = card_back_filename
+        if self.Effects:
+            card_text = ", ".join([str(effect) for effect in self.Effects])
+        else:
+            card_text = ""
+        self.CardImageFilepath = self.makeCardImage(self.CardBackFilename,text=card_text)
+    
+    def __repr__(self):
+        effects = self.Effects
+        if effects:
+            effects = ",".join([str(effect) for effect in self.Effects])
+        else:
+            effects = ""
+        return f"{self.Name}({self.Cost}):{effects}"
+  
+
+class Creature(Card):
+    def __init__(self,card_name,effect_library,mana_cost=0,location="",\
+        power=0,toughness=0,\
+        effects="{}",supertypes="",controller=None,static_abilities="",\
+        behavior="Attack Random Enemy",supertype="Creature",types="",portrait_fp=None,card_back_filename="random"):
+        """Make a new creature card
+        """
+        self.Name = card_name
+        self.Power = int(power)
+        self.Toughness = int(toughness)
+        self.Controller = controller
+        self.Cost = int(mana_cost)
+        self.CardType = supertype
+        self.Behavior = behavior
+        self.Location = location
+        self.CurrentHealth = self.Toughness
+        self.Dead = False
+        self.StaticAbilities = static_abilities.split(",")
+        self.SuperTypes = supertypes.split(",") 
+        self.SuperTypes.append(supertype)
+        self.Types = types.split(",")
+        self.setUpEffects(effects,effect_library)
+        self.setController(controller)
+        self.Portrait = portrait_fp
+        print("Current Location:",location)
+        self.CardBackFilename = card_back_filename
+        card_text = "Action — "+self.Behavior + "\n" + ", ".join([str(effect) for effect in self.Effects]) +"\n " + ", ".join(self.StaticAbilities)
+        self.CardImageFilepath = self.makeCardImage(card_back_filename,text=card_text)
+
+    def __repr__(self):
+        if self.checkIfDead():
+            return f"{self.Name} (Dead)"
+        return f"{self.Name}({self.Cost}):{self.Power}/{self.CurrentHealth}"
  
     def attack(self,target):
         """Resolve an attack"""
@@ -301,7 +287,7 @@ class Creature(Card):
         if "Creature" in target.SuperTypes and\
             "Ranged" not in target.StaticAbilities and\
             "Ranged" not in self.StaticAbilities:
-            print(f"{creature.Name} takes {target.Power} damage")
+            print(f"{self.Name} takes {target.Power} damage during its attack")
             target.dealDamage(target=self,amount=target.Power)
         elif "Ranged" in self.StaticAbilities:
             print(f"{target.Name} doesn't get a chance to attack back because {self.Name} is Ranged")
@@ -535,6 +521,25 @@ class Player(object):
         print(",".join(map(str,drawn_cards)))
         self.Hand.extend(drawn_cards)        
 
+    def removeCardFromHand(self,card):
+        """Discard a specific card"""
+        for i,hand_card in enumerate(self.Hand):
+                if hand_card == card:
+                    removed_card = self.Hand.pop(i)
+                    return removed_card 
+
+    def discardRandom(self,n_cards):
+        """Discard n_cards Cards from Hand at random"""
+        discarded_cards = []
+        for i in range(n_cards):
+            if not self.Hand:
+                print("Hand is empty, can't discard more cards")
+                return discarded_cards
+
+            random_card_in_hand = choice(self.Hand)
+            current_discard = self.removeCardFromHand(random_card_in_hand)
+            discarded_cards.append(current_discard)
+
     def playCard(self,card,verbose=True):
         """Play a card from hand"""
 
@@ -545,14 +550,8 @@ class Player(object):
         if card.Cost > self.CurrentMana:
             print("Can't play card - not enough mana")
             return None
-
         else:
-            for i,hand_card in enumerate(self.Hand):
-                if hand_card == card:
-                    #print("Removing 1 copy of card from hand")
-                    self.Hand.pop(i)
-                    break #don't play later copies
-            
+            card = self.removeCardFromHand(card)
             if card.CardType == "Creature":
                 #print("Playing card as creature")
                 if len(self.Board) < self.MaxBoardSize: 
@@ -662,8 +661,6 @@ class Game(object):
                 continue
             
             if creature.Behavior == "Attack Random Enemy":
-                
-
                 attacker_ranged = False
                 attacker_flying = False
 
@@ -715,6 +712,14 @@ class Game(object):
                 target.takeDamage(creature.Power) 
             elif creature.Behavior == "Defend":
                 pass
+            elif creature.Behavior == "Activate":
+                print(f"{creature.Name} is activating it's ability")
+                for e in creature.Effects:
+                    e.Controller = creature.Controller
+                
+                found_target = creature.getTargets()
+                if found_target:
+                    creature.activate() 
 
     def playPhase(self,player):
         """Do a play phase

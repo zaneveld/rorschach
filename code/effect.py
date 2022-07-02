@@ -30,7 +30,8 @@ class EffectSet(object):
             "deal damage":DealDamage,
             "gain mana crystals":GainManaCrystals,
             "heal":Heal,
-            "draw":Draw
+            "draw":Draw,
+            "discard random":DiscardRandom
           }
     
         self.Effects = self.makeEffects(effects_to_make) 
@@ -85,11 +86,27 @@ class Effect(object):
         self.Conditions = conditions or []
         self.Magnitude = int(magnitude)
         self.DamageType = damage_type
+        
+        #Set RequiredTargets as string then 
+        #literal_eval it to get actual data
         self.RequiredTargets = required_target_types or {}
         self.RequiredTargets = ast.literal_eval(self.RequiredTargets)
-        print(self.RequiredTargets)
         self.RequiredTargets = {k:int(v) for k,v in self.RequiredTargets.items()} 
         self.EffectType = effect_type
+
+    def getTargetDescriptions(self):
+        """get string describing self.RequiredTargets in words"""
+        target_descriptions = []
+        for k,v in self.RequiredTargets.items():
+            non_numeric_targets = ["all minions","all enemy minions","all players","controller","opponent"]
+            if k in non_numeric_targets:
+                target_descriptions.append(f"{k}")
+            else:
+                target_descriptions.append(f"{v} {k}")
+        target_text = " and ".join(target_descriptions)
+        target_text.replace("controller","you")
+        return target_text
+
 
     def activate(self):
         """Activate the effect"""
@@ -105,22 +122,32 @@ class DealDamage(Effect):
             t.takeDamage(amount=self.Magnitude,damage_type=self.DamageType)
     
     def __repr__(self):
-        target_descriptions = []
-        for k,v in self.RequiredTargets.items():
-            target_descriptions.append(f"{v} {k}")
-        target_text = " and ".join(target_descriptions)
-
-        return f"Deal {self.Magnitude} damage to {target_text}"
+        target_text = self.getTargetDescriptions()
+        return f"Deals {self.Magnitude} damage to {target_text}"
 
 class Draw(Effect):
     
     def activate(self):
         """targets Draw {self.Magnitude} cards"""
+        print("self.Targets:",self.Targets)
         for t in self.Targets:
             t.draw(n_cards=self.Magnitude)
     
     def __repr__(self):
-        return f"Draw {self.Magnitude} cards"
+         target_text = self.getTargetDescriptions()
+         return f"{target_text} draw {self.Magnitude} cards"
+
+class DiscardRandom(Effect):
+    
+    def activate(self):
+        """targets discard {self.Magnitude} cards"""
+        for t in self.Targets:
+            t.discardRandom(n_cards=self.Magnitude)
+    
+    def __repr__(self):
+         target_text = self.getTargetDescriptions()
+         return f"{target_text} discards {self.Magnitude} random cards"
+
 
 class Heal(Effect):
     """Heal targets of {self.Magnitude} damage"""
@@ -131,7 +158,8 @@ class Heal(Effect):
             t.healDamage(amount=self.Magnitude,damage_type=self.DamageType)
     
     def __repr__(self):
-        return f"Heal targets {self.Magnitude}"
+        target_text = self.getTargetDescriptions()
+        return f"Heal {target_text} {self.Magnitude}"
 
 
 class GainManaCrystals(Effect):
