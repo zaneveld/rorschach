@@ -148,6 +148,18 @@ class DiscardRandom(Effect):
          target_text = self.getTargetDescriptions()
          return f"{target_text} discards {self.Magnitude} random cards"
 
+class ResurrectRandomCreatures(Effect):
+    def activate(self):
+        """target players resurrect self.Magnitude creatures"""
+        for player in self.Targets:
+            print(f"Player {player.Name} is about to resurrect {self.Magnitude} random creeatures!") 
+            for i in range(self.Magnitude):
+                player.resurrectRandomCreature()
+
+    def __repr__(self):
+         target_text = self.getTargetDescriptions()
+         return f"{target_text} discards {self.Magnitude} random cards"
+ 
 
 class Heal(Effect):
     """Heal targets of {self.Magnitude} damage"""
