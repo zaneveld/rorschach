@@ -5,8 +5,9 @@ import arcade
 import os
 import pandas as pd
 from random import randint,choice,shuffle
-from rorschach.code.deck import CardSet,EffectSet
 from collections import defaultdict
+from rorschach.code.deck import CardSet,EffectSet
+from rorschach.code.player import Player
 
 # Screen title and size
 SCREEN_WIDTH = 1024
@@ -46,37 +47,81 @@ class MapView(arcade.View):
 
     def on_show_view(self):
         """ This is run once when we switch to this view """
-        arcade.set_background_color(arcade.csscolor.BLACK)
+        arcade.set_background_color(arcade.color.AMAZON)
 
     def on_draw(self):
         """ Draw this view """
         self.clear()
         arcade.draw_text("Map Screen", self.window.width / 2, self.window.height / 2,
                          arcade.color.WHITE, font_size=50, anchor_x="center")
-        arcade.draw_text("Click to advance", self.window.width / 2, self.window.height / 2-75,
+        arcade.draw_text("Click to advance (skips to GameView for testing)", self.window.width / 2, self.window.height / 2-75,
                          arcade.color.WHITE, font_size=20, anchor_x="center")
 
     def on_mouse_press(self, _x, _y, _button, _modifiers):
         """ If the user presses the mouse button, start the game. """
-        draft_view = DraftView()
-        draft_view.setup()
-        self.window.show_view(draft_view)
-
+        #draft_view = DraftView()
+        #draft_view.setup()
+        #self.window.show_view(draft_view)
+        game_view = GameView()
+        game_view.setup()
+        self.window.show_view(game_view)
 
 
 
 class GameView(arcade.View):
-    def setup(self):
-        """Set up the Map screen"""
-        pass
+    """Show the consequences of game actions"""
+    def init(self):
+        super().__init__()
 
+    def setup(self,draft=None):
+        """Set up the Game screen"""
+ 
+        #For now cheat and extract all necessary information
+        #from the Draft object
+        #if not draft:
+        #    raise NotImplementedError("Direct access to GameView without a preceding draft isn't yet supported")
+        #self.DraftView = draft
+        #Steal all the data!
+        #self.PlayerDeck = self.DraftView.Deck
+        
+        # Mat sprite list
+        # Sprite list with all the mats tha cards lay on.
+
+        self.Spacing = SpaceManager(n_columns = 10, n_rows = 6)
+
+
+        self.PlayerBoard = arcade.SpriteList()
+        self.draw_mat_row(self.Spacing.Row[1],sprite_list=self.PlayerBoard)
+        
+        self.LocationBoard = arcade.SpriteList()
+        self.draw_mat_row(self.Spacing.Row[2],sprite_list=self.LocationBoard)
+             
+        self.OpponentBoard = arcade.SpriteList()
+        self.draw_mat_row(self.Spacing.Row[3],sprite_list = self.OpponentBoard)
+
+    def draw_mat_row(self,row_center_y,sprite_list, n_columns=10,mat_color = arcade.csscolor.DARK_OLIVE_GREEN):
+        """Draw a mat row"""
+
+        for i in range(n_columns):
+            pile = arcade.SpriteSolidColor(self.Spacing.MatWidth, self.Spacing.MatHeight,\
+              mat_color)
+            pile.position = (self.Spacing.Column[i],row_center_y)
+            print(f"Current pile position (column {i}):",pile.position)
+            sprite_list.append(pile)
+ 
+  
     def on_show_view(self):
         """ This is run once when we switch to this view """
-        arcade.set_background_color(arcade.csscolor.Amazon)
+        arcade.set_background_color(arcade.color.AMAZON)
 
     def on_draw(self):
         """ Draw this view """
         self.clear()
+
+        self.PlayerBoard.draw()
+        self.LocationBoard.draw()
+        self.OpponentBoard.draw()
+
         arcade.draw_text("Game Screen", self.window.width / 2, self.window.height / 2,
                          arcade.color.WHITE, font_size=50, anchor_x="center")
         arcade.draw_text("Click to advance", self.window.width / 2, self.window.height / 2-75,
@@ -88,6 +133,54 @@ class GameView(arcade.View):
         map_view.setup()
         self.window.show_view(map_view)
 
+
+
+class SpaceManager(object):
+    """Plan Rows and Columns on the Screen"""
+    def __init__(self,screen_width = 1024,screen_height =768,card_width=825,
+        card_height=1125,card_scale=0.10,mat_to_card_ratio=1.10,n_columns=7,n_rows=5):
+        self.CardWidth = card_width  
+        self.CardHeight = card_height
+        self.ScreenWidth = screen_width
+        self.ScreenHeight = screen_height
+        self.CardScale = card_scale
+
+        self.MatWidth, self.MatHeight = self.getMatSize(self.CardWidth,self.CardHeight,\
+          self.CardScale,mat_to_card_ratio)
+
+        self.VerticalOffset = self.MatHeight/2
+        self.Column = self.getColumnSpacing(n_columns)
+        self.Row = self.getRowSpacing(n_rows)
+
+    def getMatSize(self,card_width=825,card_height = 1125, card_scale=0.15,mat_to_card_size_ratio=1.25):
+        """Get the width of a card mat"""
+         #do some math to get to the size of a mat
+        scaled_card_width = card_width * card_scale
+        mat_width = scaled_card_width * mat_to_card_size_ratio
+        
+        scaled_card_height = card_height * card_scale
+        mat_height = scaled_card_height * mat_to_card_size_ratio
+        return int(mat_width),int(mat_height)
+
+    def getRowSpacing(self,n_rows, vertical_mat_margin = 0.10):
+        row_y_coords = []
+        first_y = self.MatHeight/2 + self.MatHeight * vertical_mat_margin + self.VerticalOffset
+        y_spacing = self.MatHeight + self.MatHeight * vertical_mat_margin
+        for i in range(n_rows):
+            curr_y_coord = int(first_y + i * y_spacing)
+            row_y_coords.append(curr_y_coord)
+        return row_y_coords
+
+    def getColumnSpacing(self,n_columns=7,horizontal_mat_margin=0.10):
+        """Return a list of column X coordinates"""
+         
+        column_x_coords = []
+        first_x = self.MatWidth/2 + self.MatWidth * horizontal_mat_margin
+        x_spacing = self.MatWidth + self.MatWidth * horizontal_mat_margin
+        for i in range(n_columns):
+            curr_x_coord = int(first_x + i * x_spacing) 
+            column_x_coords.append(curr_x_coord)         
+        return column_x_coords
    
 
 class DraftView(arcade.View):
@@ -95,7 +188,6 @@ class DraftView(arcade.View):
 
     def __init__(self):
         super().__init__()
-        #super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
 
         #Load set data
         card_data_filepath = "../data/card_data/basic_card_set.txt"
@@ -407,7 +499,7 @@ class DraftView(arcade.View):
                     
                     #Draft Finished! Exit to Game!
                     game_view = GameView()
-                    game_view.setup()
+                    game_view.setup(draft=self)
                     self.window.show_view(game_view)  
             elif mat is self.DiscardMat and len(self.Discard) < self.DiscardSize and primary_card.Active:
                 # Success, don't reset position of cards
