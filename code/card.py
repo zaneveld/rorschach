@@ -65,8 +65,10 @@ class CardSet(object):
         return card 
  
 class Card(object):
-    """Superclass for Spells and Creatures"""
-    
+    """Superclass for Cards such as Spells and Creatures"""
+    def __init__(self):
+        pass
+ 
     def setUpEffects(self,effect_text,effect_library,numeric_params=["magnitude"]):
         """Set up effects
         """
@@ -154,6 +156,12 @@ class Card(object):
         for effect in self.Effects:
             effect.Controller = self.Controller
  
+    def hasType(self,card_type):
+        """Return True if the creature has a specific creature type"""
+        if card_type in self.Types:
+            return True
+        else:
+            return False            
 
 class Spell(Card):
     def __init__(self,card_name,mana_cost,effects,effect_library,\
@@ -166,7 +174,7 @@ class Spell(Card):
         """
         self.Name = card_name
         self.Cost = mana_cost
-        self.CardType = "Spell"
+        self.CardType = supertype
         self.Types = types
         self.Behavior = behavior
         self.setUpEffects(effects,effect_library)
@@ -188,15 +196,13 @@ class Spell(Card):
         else:
             effects = ""
         return f"{self.Name}({self.Cost}):{effects}"
-  
 
-class Creature(Card):
-    def __init__(self,card_name,effect_library,mana_cost=0,location="",\
-        power=0,toughness=0,\
-        effects="{}",supertypes="",controller=None,static_abilities="",\
-        behavior="Attack Random Enemy",supertype="Creature",types="",portrait_fp=None,card_back_filename="random"):
-        """Make a new creature card
-        """
+
+
+
+class Location(Card):
+    def __init__(self,card_name,effect_library,card_back_filename="random",portrait_fp=None,starting_health=10):
+        self.Health = 10
         self.Name = card_name
         self.Power = int(power)
         self.Toughness = int(toughness)
@@ -209,21 +215,71 @@ class Creature(Card):
         self.Dead = False
         self.StaticAbilities = static_abilities.split(",")
         self.BaseStaticAbilties = self.StaticAbilities
-        self.SuperTypes = supertypes.split(",") 
-        self.SuperTypes.append(supertype)
+        self.CardType = supertypes 
         self.Types = types.split(",")
         self.setUpEffects(effects,effect_library)
         self.setController(controller)
         self.Portrait = portrait_fp
+        self.CardBackFilename = card_back_filename
+        card_text = "Action — "+self.Behavior + "\n" + ", ".join([str(effect) for effect in self.Effects]) +"\n " + ", ".join(self.StaticAbilities)
+        self.CardImageFilepath = self.makeCardImage(card_back_filename,text=card_text,power=self.Power,toughness=self.Toughness) 
+
+class Creature(Card):
+    def __init__(self,card_name,effect_library,mana_cost=0,location="",\
+        power=0,toughness=0,\
+        effects="{}",controller=None,static_abilities="",\
+        behavior="Attack Random Enemy",supertype="Creature",types="",portrait_fp=None,card_back_filename="random"):
+        """Make a new creature card
+        """
+        self.Name = card_name
+        self.Dead = False
+        self.Power = int(power)
+        self.Toughness = int(toughness)
+        self.Controller = controller
+        self.Cost = int(mana_cost)
+        self.CardType = supertype
+        self.Behavior = behavior
+        self.Location = location
+        self.CurrentHealth = self.Toughness
+        self.StaticAbilities = static_abilities.split(",")
+        self.BaseStaticAbilties = self.StaticAbilities
+        self.CardType = supertype 
+        self.Types = types.split(",")
+        self.setUpEffects(effects,effect_library)
+        self.setController(controller)
+        self.Influence = 0
+        self.Corruption = 0
+
+        #Set up card image
+        self.Portrait = portrait_fp
         print("Current Location:",location)
         self.CardBackFilename = card_back_filename
         card_text = "Action — "+self.Behavior + "\n" + ", ".join([str(effect) for effect in self.Effects]) +"\n " + ", ".join(self.StaticAbilities)
-        self.CardImageFilepath = self.makeCardImage(card_back_filename,text=card_text)
+        self.CardImageFilepath = self.makeCardImage(card_back_filename,text=card_text,power=self.Power,toughness=self.Toughness)
 
     def __repr__(self):
         if self.checkIfDead():
             return f"{self.Name} (Dead)"
         return f"{self.Name}({self.Cost}):{self.Power}/{self.CurrentHealth}"
+
+    def convert(self,influencer):
+        """convert by adding Influence counters to support another controller"""
+        #When a creature Converts, it drops all influence to Zero
+        #then changes controller
+
+        self.Influence = 0
+        self.setController(influencer)
+
+    def corrupt(self,amount,corrupter):
+        """add Corruption counters """
+        self.Corruption += amount
+        if self.Corruption >= self.Cost:
+            self.SetController(corrupter)
+            #NOTE: corruption counters are 
+            #NOT set to zero, so once 
+            #a creature is corrupted
+            #it can easily be corrupted 
+            #further
  
     def attack(self,target):
         """Resolve an attack"""
@@ -234,7 +290,7 @@ class Creature(Card):
         
         #Ranged creatures only suffer damage when defending,
         #and only deal damage when attacking
-        if "Creature" in target.SuperTypes and\
+        if "Creature" in target.CardType and\
             "Ranged" not in target.StaticAbilities and\
             "Ranged" not in self.StaticAbilities:
             print(f"{self.Name} takes {target.Power} damage during its attack")
@@ -249,7 +305,7 @@ class Creature(Card):
     def canAttack(self,target):
         """Return True if it is possible, in general, to attack target"""
 
-        if "Player" in target.SuperTypes:
+        if "Player" in target.CardType:
             print(f"{target.Name} is a player, so {self.Name} can attack it")
             return True
 
@@ -311,12 +367,6 @@ class Creature(Card):
         else:
             return False
 
-    def hasType(self,creature_type):
-        """Return True if the creature has a specific creature type"""
-        if creature_type in self.Types:
-            return True
-        else:
-            return False            
  
     def checkIfDead(self):    
         """Return True if dead"""        
