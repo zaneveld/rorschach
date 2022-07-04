@@ -10,7 +10,7 @@ from os import listdir
 from rorschach.code.effect import EffectSet,Effect,DealDamage,Draw,GainManaCrystals,Heal,DiscardRandom
 
 class Player(object):
-    def __init__(self,deck,health=20,name="Unknown Player",total_mana=0):
+    def __init__(self,deck,health=20,name="Unknown Player",total_mana=0,game=None):
         self.Name = name
 
         self.Health = health
@@ -26,6 +26,7 @@ class Player(object):
         self.Board = []
         self.MaxBoardSize = 7
         self.Graveyard = []
+        self.Game = game
  
     def __repr__(self):
         return f"{self.Name} ({self.Health} health)"
@@ -163,7 +164,7 @@ class Player(object):
 
         print(f"{self.Name} drew the following {n_cards} cards:")
         drawn_cards = self.Deck.draw(n_cards)
-        print(",".join(map(str,drawn_cards)))
+        self.Game.Interface.report(",".join(map(str,drawn_cards)),"draw",{"player":self,"drawn cards":drawn_cards})
         self.Hand.extend(drawn_cards)        
 
     def removeCardFromHand(self,card):

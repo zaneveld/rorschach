@@ -116,6 +116,10 @@ class GameView(arcade.View):
 
         self.Spacing = SpaceManager(n_columns = 10, n_rows = 6)
 
+        self.PlayerHand = arcade.SpriteList()
+
+        self.PlayerHandBoard = arcade.SpriteList()
+        self.draw_mat_row(self.Spacing.Row[0],sprite_list=self.PlayerHandBoard)
 
         self.PlayerBoard = arcade.SpriteList()
         self.draw_mat_row(self.Spacing.Row[1],sprite_list=self.PlayerBoard)
@@ -125,6 +129,11 @@ class GameView(arcade.View):
              
         self.OpponentBoard = arcade.SpriteList()
         self.draw_mat_row(self.Spacing.Row[3],sprite_list = self.OpponentBoard)
+
+        self.OpponentHandBoard = arcade.SpriteList()
+        self.draw_mat_row(self.Spacing.Row[4],sprite_list = self.OpponentHandBoard)
+
+        self.OpponentHand = arcade.SpriteList()
 
         #Load set data
         card_data_filepath = "../data/card_data/basic_card_set.txt"
@@ -157,6 +166,49 @@ class GameView(arcade.View):
         self.CurrentTurnOver = True
         self.Winner = None
 
+        #Put some text in the upper right
+        title_font_size = 20
+        self.TurnReport = arcade.Text(
+            f"Turn:{self.Turn}",
+            self.Spacing.Column[5],
+            self.Spacing.Row[0],
+            arcade.csscolor.WHITE,
+            title_font_size,
+            bold = True,
+            width=self.Spacing.ScreenWidth/2,
+            align="left",
+        ) 
+
+    def report(self,free_text,specific_event = None,event_properties={}):
+        """Key function for connecting game to game view"""
+        if specific_event == 'draw':
+            cards = event_properties['drawn cards']
+            player = event_properties['player']
+            for c in cards:
+                card_sprite = CardImage
+                card_sprite = CardImage(c.CardImageFilepath,scale=self.Spacing.CardScale)
+                #put the new card sprite in the right column of the player's hand
+                if player is self.Game.Player1:    
+                    col = len(self.PlayerHand)
+                    self.PlayerHand.append(card_sprite) 
+                    row = 0
+                    print(self.PlayerHand)
+                    print(len(self.PlayerHand))
+                if player is self.Game.Player2:
+                    col = len(self.OpponentHand)
+                    self.OpponentHand.append(card_sprite)
+                    row = 4
+                    print(self.OpponentHand)
+                    print(len(self.OpponentHand))
+                print(col,row)
+                print("Spacing slots:",len(self.Spacing.Column),len(self.Spacing.Row))
+                card_sprite.position = self.Spacing.Column[col],self.Spacing.Row[row]
+
+
+
+    def updateScreen(self):
+        self.TurnReport.text = f"Turn:{self.Turn}"
+
     def on_mouse_press(self, _x, _y, _button, _modifiers):
         """ If the user presses the mouse button, start the game. """
        
@@ -170,6 +222,7 @@ class GameView(arcade.View):
     def nextTurn(self):
         """advance the turn by 1"""
         self.Turn += 1
+        self.updateScreen()
         self.CurrentTurnOver = False
         
         for player in self.Game.PlayOrder:
@@ -208,8 +261,7 @@ class GameView(arcade.View):
               mat_color)
             pile.position = (self.Spacing.Column[i],row_center_y)
             print(f"Current pile position (column {i}):",pile.position)
-            sprite_list.append(pile)
- 
+            sprite_list.append(pile) 
   
     def on_show_view(self):
         """ This is run once when we switch to this view """
@@ -218,15 +270,15 @@ class GameView(arcade.View):
     def on_draw(self):
         """ Draw this view """
         self.clear()
-
+        self.PlayerHandBoard.draw()
         self.PlayerBoard.draw()
         self.LocationBoard.draw()
         self.OpponentBoard.draw()
+        self.OpponentHandBoard.draw()
+        self.PlayerHand.draw()
+        self.OpponentHand.draw()
 
-        arcade.draw_text("Game Screen", self.window.width / 2, self.window.height / 2,
-                         arcade.color.WHITE, font_size=50, anchor_x="center")
-        arcade.draw_text("Click to advance", self.window.width / 2, self.window.height / 2-75,
-                         arcade.color.WHITE, font_size=20, anchor_x="center")
+        self.TurnReport.draw()
 
     #def on_mouse_press(self, _x, _y, _button, _modifiers):
     #    """ If the user presses the mouse button, start the game. """
@@ -239,7 +291,7 @@ class GameView(arcade.View):
 class SpaceManager(object):
     """Plan Rows and Columns on the Screen"""
     def __init__(self,screen_width = 1024,screen_height =768,card_width=825,
-        card_height=1125,card_scale=0.10,mat_to_card_ratio=1.10,n_columns=7,n_rows=5):
+        card_height=1125,card_scale=0.10,mat_to_card_ratio=1.10,n_columns=9,n_rows=5):
         self.CardWidth = card_width  
         self.CardHeight = card_height
         self.ScreenWidth = screen_width
@@ -402,7 +454,7 @@ class DraftView(arcade.View):
         
         
         for i,card in enumerate(deck):
-            card_sprite = Card(card,scale=self.CardScale)
+            card_sprite = CardImage(card,scale=self.CardScale)
             card_sprite.position = (self.CardStartX,self.CardStartY)
             card_sprite.name = card_name_list[i]
             self.CardList.append(card_sprite)
@@ -659,7 +711,7 @@ class DraftView(arcade.View):
         
         deck_df.to_csv(filepath,sep="\t")
 
-class Card(arcade.Sprite):
+class CardImage(arcade.Sprite):
     """ Card sprite """
 
     def __init__(self, card_image_fp, scale=1):

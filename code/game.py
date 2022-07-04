@@ -20,12 +20,8 @@ class GameInterface(object):
     def __init__(self):
         pass
 
-    def report(self,action):
-        print(action)
-
-
-
-
+    def report(self,free_text,specific_event,specific_event_props={}):
+        print(free_text)
 
 
 
@@ -34,7 +30,8 @@ class Game(object):
     def __init__(self,player_1,player_2,game_interface=None):
         self.Player1 = player_1
         self.Player2 = player_2
-        
+        self.Player1.Game = self
+        self.Player2.Game = self        
         self.Interface = game_interface
         if self.Interface == None:
             self.Interface = GameInterface()
