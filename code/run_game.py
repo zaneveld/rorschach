@@ -6,8 +6,9 @@ import os
 import pandas as pd
 from random import randint,choice,shuffle
 from collections import defaultdict
-from rorschach.code.deck import CardSet,EffectSet
+from rorschach.code.deck import CardSet,EffectSet,load_deck,Deck
 from rorschach.code.player import Player
+from rorschach.code.game import Game
 
 # Screen title and size
 SCREEN_WIDTH = 1024
@@ -40,10 +41,36 @@ class InstructionView(arcade.View):
         map_view.setup()
         self.window.show_view(map_view)
 
+class GameOverView(arcade.View):
+    """Show Game Over Screen"""
+
+    def setup(self,message):
+        """Set up the instruction screen"""
+        self.Message = message
+
+    def on_show_view(self):
+        """ This is run once when we switch to this view """
+        arcade.set_background_color(arcade.csscolor.DARK_SLATE_BLUE)
+
+    def on_draw(self):
+        """ Draw this view """
+        self.clear()
+        arcade.draw_text(self.Message, self.window.width / 2, self.window.height / 2,
+                         arcade.color.WHITE, font_size=50, anchor_x="center")
+        arcade.draw_text("Click to advance", self.window.width / 2, self.window.height / 2-75,
+                         arcade.color.WHITE, font_size=20, anchor_x="center")
+
+    def on_mouse_press(self, _x, _y, _button, _modifiers):
+        """ If the user presses the mouse button, start the game. """
+        map_view = MapView()
+        map_view.setup()
+        self.window.show_view(map_view)
+
+
 class MapView(arcade.View):
     def setup(self):
         """Set up the Map screen"""
-        pass
+        self.Spacing = SpaceManager(n_columns=10,n_rows=6)
 
     def on_show_view(self):
         """ This is run once when we switch to this view """
@@ -99,6 +126,80 @@ class GameView(arcade.View):
         self.OpponentBoard = arcade.SpriteList()
         self.draw_mat_row(self.Spacing.Row[3],sprite_list = self.OpponentBoard)
 
+        #Load set data
+        card_data_filepath = "../data/card_data/basic_card_set.txt"
+        effect_data_filepath = "../data/effect_data/effect_data.txt"
+        basic_effects = EffectSet(effect_data_filepath)
+        basic_cards = CardSet(card_data_filepath,effect_library=basic_effects)
+
+        #Load decks
+        player_1_name = "Player"
+        player_1_deck_path = "../data/decks/latest_player_draft.tsv"
+        player_1_deck_cards = load_deck(player_1_deck_path,card_library=basic_cards)
+        player_1_deck = Deck(player_1_deck_cards)
+        print(f"{player_1_name} decklist:", player_1_deck.toDeckList())
+        player_1 = Player(name=player_1_name,deck=player_1_deck)
+
+        player_2_name = "King Kyber"
+        player_2_deck_path = "../data/decks/King_Kyber_starter_deck.txt"
+        #player_2_name = "Bloodtusk"
+        #player_2_deck_path = "../data/decks/Bloodtusk_starter_deck.txt"
+        player_2_deck_cards = load_deck(player_2_deck_path,card_library=basic_cards)
+        player_2_deck = Deck(player_2_deck_cards)
+        print(f"{player_2_name} decklist:", player_2_deck.toDeckList())
+        player_2 = Player(name = player_2_name,deck=player_2_deck)
+
+        print("ABOUT TO RUN GAME!!!!!")
+        #Run game
+        self.Game = Game(player_1,player_2,game_interface=self)
+        self.Turn = 0 
+        self.GameOrder = [player_1,player_2]
+        self.CurrentTurnOver = True
+        self.Winner = None
+
+    def on_mouse_press(self, _x, _y, _button, _modifiers):
+        """ If the user presses the mouse button, start the game. """
+       
+        #Right now the only effect of pressing the mouse is 
+        #to advance the turn
+
+        #Don't let turns stop partway through due to mouse presses
+        if self.CurrentTurnOver:          
+            self.nextTurn()          
+
+    def nextTurn(self):
+        """advance the turn by 1"""
+        self.Turn += 1
+        self.CurrentTurnOver = False
+        
+        for player in self.Game.PlayOrder:
+            self.Game.takeTurn(player)  
+        
+        winner = self.checkForWinner(self.Game.Player1,self.Game.Player2)
+        self.CurrentTurnOver = True
+ 
+
+    def checkForWinner(self,player1,player2):
+        winner = None
+        if player1.Health <= 0 and player2.Health <=0:
+            print("Both players die. Tie game!")
+            tie_view = GameOverView()
+            tie_view.setup(message = "Tie game")
+            self.window.show_view(tie_view)
+            winner = "Tie!"
+        elif player1.Health <=0:
+            loss_view = GameOverView()
+            loss_view.setup(message = f"You are defeated by {self.Game.Player2.Name}!")
+            self.window.show_view(loss_view)
+            winner = player2
+        elif player2.Health <=0:
+            print(f"You are victorious against {self.Game.Player2.Name}!")
+            loss_view = GameOverView()
+            loss_view.setup(message = f"You are defeated by {self.Game.Player2.Name}!")
+            self.window.show_view(loss_view)
+            winner = player1
+        return winner
+
     def draw_mat_row(self,row_center_y,sprite_list, n_columns=10,mat_color = arcade.csscolor.DARK_OLIVE_GREEN):
         """Draw a mat row"""
 
@@ -127,11 +228,11 @@ class GameView(arcade.View):
         arcade.draw_text("Click to advance", self.window.width / 2, self.window.height / 2-75,
                          arcade.color.WHITE, font_size=20, anchor_x="center")
 
-    def on_mouse_press(self, _x, _y, _button, _modifiers):
-        """ If the user presses the mouse button, start the game. """
-        map_view = MapView()
-        map_view.setup()
-        self.window.show_view(map_view)
+    #def on_mouse_press(self, _x, _y, _button, _modifiers):
+    #    """ If the user presses the mouse button, start the game. """
+    #    map_view = MapView()
+    #    map_view.setup()
+    #    self.window.show_view(map_view)
 
 
 

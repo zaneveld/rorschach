@@ -12,11 +12,33 @@ from rorschach.code.player import Player
 from card import Card,Spell,Creature,CardSet
 from deck import Deck,load_deck
 
+
+
+
+
+class GameInterface(object):
+    def __init__(self):
+        pass
+
+    def report(self,action):
+        print(action)
+
+
+
+
+
+
+
+
 class Game(object):
-    def __init__(self,player_1,player_2):
+    def __init__(self,player_1,player_2,game_interface=None):
         self.Player1 = player_1
         self.Player2 = player_2
-
+        
+        self.Interface = game_interface
+        if self.Interface == None:
+            self.Interface = GameInterface()
+       
         self.Player1.Opponent = self.Player2
         self.Player2.Opponent = self.Player1
 
@@ -37,16 +59,28 @@ class Game(object):
             self.doPhase(player,phase)    
 
     def runGame(self,wait_for_input=True):
+        """Run the game
+
+        wait_for_input -- wait to show each turn until player
+          responds to input prompt
+        """
         player1 = self.Player1
         player2 = self.Player2
         turn = 0
         while player1.Health > 0 and player2.Health >0:
             turn += 1
             print(f"--- Start of Turn {turn} ---")
+        
             for player in self.PlayOrder:
                 self.takeTurn(player)
                 input("Ready to move on?")
+       
+        self.Winner = self.checkForLoss(player1,player2)        
+        return self.Winner
         
+        
+    def checkForLoss(self,player1,player2):
+        """Check if a player lost, or return None if game is ongoing"""
         if player1.Health <= 0 and player2.Health <=0:
             print("Both players die. Tie game!")
         elif player1.Health <=0:
