@@ -22,7 +22,7 @@ class Player(object):
         self.Deck = deck
         self.Deck.shuffle()
         self.Hand = self.Deck.draw(3)
-        self.SuperTypes = ["Player"]
+        self.CardType = "Player"
         self.Board = []
         self.MaxBoardSize = 7
         self.Graveyard = []
@@ -123,7 +123,7 @@ class Player(object):
             targets.append(choice(damaged_creatures))
    
      
-    def filter(iterable,self,positive_filter_method_name=None,positive_filter_kwargs = {},\
+    def filter(self,iterable,positive_filter_method_name=None,positive_filter_kwargs = {},\
       negative_filter_method_name=None,negative_filter_kwargs={}):
         """Return all minions on board that pass positive filter but not negative filter"""
         all_creatures = [creature for creature in iterable]
@@ -144,6 +144,10 @@ class Player(object):
         
         return filtered_creatures     
          
+    def filterBoard(self,*args,**kwargs):
+        """Convenience method to call filter on the player's board"""
+        iterable = self.Board
+        return self.filter(iterable,*args,**kwargs)
 
     def gainTotalMana(self,amount):
         """Gain total mana"""
@@ -211,8 +215,12 @@ class Player(object):
     
     def resurrectCreature(self,max_mana_cost = None, required_type = None, required_static_ability = None, required_supertype = "Creature"):
         """Resurrect a creature with conditions"""
-        possible_targets = self.Graveyard
-
+        
+        if not self.Graveyard:
+            return False
+        
+        possible_targets = [card for card in self.Graveyard if required_supertype in card.CardType]
+        
         if not possible_targets:
             return False
 
@@ -223,9 +231,15 @@ class Player(object):
             return False
 
         if required_type:
-            pass
+            possible_targets = [t for t in possible_targets if required_type in t.Types]
+
+        if not possible_targets:
+            return False
         
-        return possible_targets
+        target = choice(possible_targets)
+        self.returnCreatureToPlay(target) 
+        
+        return 
 
     def returnCreatureToPlay(self,creature):
         """Return a creature to play"""
@@ -239,7 +253,8 @@ class Player(object):
             if c is creature:
                 c.Alive = True   
                 creature = self.Graveyard.pop(i)
-                self.Hand.append(creature)
+                self.Board.append(creature)
+                break
 
     def highestCostPlayableCard(self):
         """Return the highest cost playable card in hand"""

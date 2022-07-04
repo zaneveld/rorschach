@@ -31,7 +31,8 @@ class EffectSet(object):
             "gain mana crystals":GainManaCrystals,
             "heal":Heal,
             "draw":Draw,
-            "discard random":DiscardRandom
+            "discard random":DiscardRandom,
+            "resurrect random":ResurrectRandomCreatures
           }
     
         self.Effects = self.makeEffects(effects_to_make) 
@@ -115,7 +116,6 @@ class Effect(object):
 
 class DealDamage(Effect):
     """Deal {magnitude} damage to required targets"""
-    
     def activate(self):
         """Deal self.Magnitude damage to targets"""
         for t in self.Targets:
@@ -126,7 +126,7 @@ class DealDamage(Effect):
         return f"Deals {self.Magnitude} damage to {target_text}"
 
 class Draw(Effect):
-    
+    """Targets draw cards"""    
     def activate(self):
         """targets Draw {self.Magnitude} cards"""
         print("self.Targets:",self.Targets)
@@ -138,7 +138,7 @@ class Draw(Effect):
          return f"{target_text} draw {self.Magnitude} cards"
 
 class DiscardRandom(Effect):
-    
+    """Targets discard random cards"""
     def activate(self):
         """targets discard {self.Magnitude} cards"""
         for t in self.Targets:
@@ -149,21 +149,21 @@ class DiscardRandom(Effect):
          return f"{target_text} discards {self.Magnitude} random cards"
 
 class ResurrectRandomCreatures(Effect):
+    """Resurrect random creatures"""
     def activate(self):
         """target players resurrect self.Magnitude creatures"""
         for player in self.Targets:
             print(f"Player {player.Name} is about to resurrect {self.Magnitude} random creeatures!") 
             for i in range(self.Magnitude):
-                player.resurrectRandomCreature()
+                player.resurrectCreature()
 
     def __repr__(self):
          target_text = self.getTargetDescriptions()
-         return f"{target_text} discards {self.Magnitude} random cards"
+         return f"{target_text} resurrects {self.Magnitude} random creatures"
  
 
 class Heal(Effect):
     """Heal targets of {self.Magnitude} damage"""
-    
     def activate(self):
         """Heal {self.Magnitude} damage to targets"""
         for t in self.Targets:
