@@ -86,12 +86,73 @@ class MapView(arcade.View):
 
     def on_mouse_press(self, _x, _y, _button, _modifiers):
         """ If the user presses the mouse button, start the game. """
-        #draft_view = DraftView()
-        #draft_view.setup()
-        #self.window.show_view(draft_view)
-        game_view = GameView()
-        game_view.setup()
-        self.window.show_view(game_view)
+        draft_view = DraftView()
+        draft_view.setup()
+        self.window.show_view(draft_view)
+        #game_view = GameView()
+        #game_view.setup()
+        #self.window.show_view(game_view)
+
+
+
+class TextReport(object):
+    """An automatically updating text display
+    """
+    def __init__(self,variables:dict,format_text:str,row:int,column:int,\
+        spacing_manager,normal_color=arcade.csscolor.WHITE,
+        alt_color=arcade.csscolor.YELLOW, color_change_variable=None,
+        color_change_threshold=None,font_size:int=20):
+        """Create a dynamic text report. 
+        variables -- a dict with keys for strings and values as links to properties\
+        of other class instances (e.g. {"Health": self.Player1} will use getattr to access Health from Player1})
+        
+        format_text -- text with format fields matching the variables dict. E.g. "{Health} / {MaxHealth"}
+        """
+        self.Template = format_text 
+        self.FontSize = font_size
+        self.Color = normal_color
+        self.AltColor = alt_color
+        self.ColorChangeVariable = color_change_variable
+        self.ColorChangeThreshold = color_change_threshold
+        self.Row = row
+        self.Column= column
+        self.Variables = variables
+        format_dict = self.makeFormatDict()
+        starting_text = format_text.format(**format_dict)
+        self.Spacing = spacing_manager
+        self.TextDisplay = arcade.Text(
+            starting_text,
+            self.Spacing.Column[column],
+            self.Spacing.Row[row],
+            self.Color,
+            self.FontSize,
+            bold = True,
+            width=self.Spacing.ScreenWidth/2,
+            align="center",
+        )
+
+    def makeFormatDict(self):
+        format_dict = {}
+        for variable,entity in self.Variables.items():
+            format_dict[variable] = getattr(entity,variable)
+        return format_dict
+        
+    def update(self):
+        """
+        """
+        format_dict = self.makeFormatDict()
+        current_text = self.Template.format(**format_dict)
+        self.TextDisplay.text = current_text
+
+        if self.AltColor and self.ColorChangeVariable and (self.ColorChangeThreshold is not None):
+            if format_dict[self.ColorChangeVariable] < self.ColorChangeThreshold:
+                self.TextDisplay.color = self.AltColor
+            else:   
+                self.TextDisplay.color = self.Color
+        
+    def draw(self,*args,**kwargs):
+        self.TextDisplay.draw(*args,**kwargs)
+        
 
 
 
@@ -102,36 +163,30 @@ class GameView(arcade.View):
 
     def setup(self,draft=None):
         """Set up the Game screen"""
- 
-        #For now cheat and extract all necessary information
-        #from the Draft object
-        #if not draft:
-        #    raise NotImplementedError("Direct access to GameView without a preceding draft isn't yet supported")
-        #self.DraftView = draft
-        #Steal all the data!
-        #self.PlayerDeck = self.DraftView.Deck
-        
-        # Mat sprite list
-        # Sprite list with all the mats tha cards lay on.
-
-        self.Spacing = SpaceManager(n_columns = 10, n_rows = 6)
+        self.Spacing = SpaceManager(n_columns = 15, n_rows = 6)
 
         self.PlayerHand = arcade.SpriteList()
 
-        self.PlayerHandBoard = arcade.SpriteList()
-        self.draw_mat_row(self.Spacing.Row[0],sprite_list=self.PlayerHandBoard)
+        self.PlayerHandMat = arcade.SpriteList()
+        self.draw_mat_row(self.Spacing.Row[0],n_columns = 10,sprite_list=self.PlayerHandMat)
 
-        self.PlayerBoard = arcade.SpriteList()
-        self.draw_mat_row(self.Spacing.Row[1],sprite_list=self.PlayerBoard)
+        self.PlayerBoardMat = arcade.SpriteList()
+        self.draw_mat_row(self.Spacing.Row[1],n_columns = 10, sprite_list=self.PlayerBoardMat)
         
-        self.LocationBoard = arcade.SpriteList()
-        self.draw_mat_row(self.Spacing.Row[2],sprite_list=self.LocationBoard)
-             
-        self.OpponentBoard = arcade.SpriteList()
-        self.draw_mat_row(self.Spacing.Row[3],sprite_list = self.OpponentBoard)
+        self.PlayerBoard = arcade.SpriteList()
 
-        self.OpponentHandBoard = arcade.SpriteList()
-        self.draw_mat_row(self.Spacing.Row[4],sprite_list = self.OpponentHandBoard)
+        self.LocationBoardMat = arcade.SpriteList()
+        self.draw_mat_row(self.Spacing.Row[2],n_columns = 10, sprite_list=self.LocationBoardMat)
+
+        self.LocationBoard = arcade.SpriteList()
+             
+        self.OpponentBoardMat = arcade.SpriteList()
+        self.draw_mat_row(self.Spacing.Row[3],n_columns = 10,sprite_list = self.OpponentBoardMat)
+
+        self.OpponentBoard = arcade.SpriteList()
+
+        self.OpponentHandMat = arcade.SpriteList()
+        self.draw_mat_row(self.Spacing.Row[4],n_columns = 10,sprite_list = self.OpponentHandMat)
 
         self.OpponentHand = arcade.SpriteList()
 
@@ -168,44 +223,101 @@ class GameView(arcade.View):
 
         #Put some text in the upper right
         title_font_size = 20
-        self.TurnReport = arcade.Text(
-            f"Turn:{self.Turn}",
-            self.Spacing.Column[5],
-            self.Spacing.Row[0],
-            arcade.csscolor.WHITE,
-            title_font_size,
-            bold = True,
-            width=self.Spacing.ScreenWidth/2,
-            align="left",
-        ) 
+
+        self.Player1 = player_1
+        self.Player2 = player_2
+        self.Reports = []
+
+        
+        
+        self.Player2HealthReport = TextReport(variables = {"Name":self.Player2,"Health":self.Player2,"MaxHealth":self.Player2},row=4,column=6,\
+          format_text="{Name} {Health}/{MaxHealth}",spacing_manager=self.Spacing)
+        self.Reports.append(self.Player2HealthReport)
+
+ 
+        self.Player2ManaReport = TextReport(variables = {"CurrentMana":self.Player2,"TotalMana":self.Player2},row=3,column=6,\
+          format_text="{CurrentMana}/{TotalMana}",spacing_manager=self.Spacing)
+        self.Reports.append(self.Player2ManaReport)
+
+        self.TurnReport = TextReport(variables={"Turn":self},row=2,column=6,format_text="Turn: {Turn}",spacing_manager=self.Spacing)
+        self.Reports.append(self.TurnReport)
+        
+        self.Player1ManaReport = TextReport(variables = {"CurrentMana":self.Player1,"TotalMana":self.Player1},row=1,column=6,\
+          format_text="{CurrentMana}/{TotalMana}",spacing_manager=self.Spacing)
+        self.Reports.append(self.Player1ManaReport)
+        
+        self.Player1HealthReport = TextReport(variables = {"Name":self.Player1,"Health":self.Player1,"MaxHealth":self.Player1},row=0,column=6,\
+          format_text="{Name}: {Health}/{MaxHealth}",spacing_manager=self.Spacing,color_change_variable="Health",color_change_threshold=10)
+        self.Reports.append(self.Player1HealthReport)
+
+        self.Player1.draw(3)
+        self.Player2.draw(3)
 
     def report(self,free_text,specific_event = None,event_properties={}):
         """Key function for connecting game to game view"""
+        print(free_text)
         if specific_event == 'draw':
             cards = event_properties['drawn cards']
             player = event_properties['player']
             for c in cards:
-                card_sprite = CardImage
-                card_sprite = CardImage(c.CardImageFilepath,scale=self.Spacing.CardScale)
+                print("Showing card:",c.Name)
+                card_sprite = CardImage(c.CardImageFilepath,scale=self.Spacing.CardScale,card=c)
+                c.CardImage = card_sprite 
                 #put the new card sprite in the right column of the player's hand
                 if player is self.Game.Player1:    
                     col = len(self.PlayerHand)
                     self.PlayerHand.append(card_sprite) 
                     row = 0
-                    print(self.PlayerHand)
-                    print(len(self.PlayerHand))
                 if player is self.Game.Player2:
                     col = len(self.OpponentHand)
                     self.OpponentHand.append(card_sprite)
                     row = 4
-                    print(self.OpponentHand)
-                    print(len(self.OpponentHand))
-                print(col,row)
-                print("Spacing slots:",len(self.Spacing.Column),len(self.Spacing.Row))
+                print("Setting card sprite position (col,row) to:",col,row)
                 card_sprite.position = self.Spacing.Column[col],self.Spacing.Row[row]
+                print("card_sprite.position:",card_sprite.position)
+        if specific_event == 'new_phase':
+                pass
 
-
-
+        if specific_event == 'play creature':
+            player = event_properties['player']
+            card = event_properties['creature']
+            position = event_properties['position']
+            card_to_play = card.CardImage 
+            if player is self.Game.Player1:
+                play_position = len(self.PlayerBoard) + 1
+                self.PlayerBoard.append(card_to_play)
+                card_to_play.position = self.PlayerBoardMat[play_position].position
+                #Remove the card from the player hand
+                self.remove(card_to_play,self.PlayerHand)
+                #for i,card_image in enumerate(self.PlayerHand):
+                #    if card_image is card_to_play:
+                #        card_to_play = self.PlayerHand.pop(i)
+                #        break
+                 
+            elif player is self.Game.Player2:
+                play_position = len(self.OpponentBoard) + 1
+                self.OpponentBoard.append(card_to_play)
+                card_to_play.position = self.OpponentBoardMat[play_position].position
+                self.remove(card_to_play,self.OpponentHand)
+                #for i,card_image in enumerate(self.OpponentHand):
+                #    if card_image is card_to_play:
+                #        card_to_play = self.OpponentHand.pop(i)
+                #        break
+                 
+        if specific_event == "creature_dies":
+            player = event_properties['player']
+            card = event_properties['creature']
+            if player is self.Game.Player1:
+                self.remove(card,self.PlayerBoard)
+            elif player is self.Game.Player2:
+                self.remove(card,self.OpponentBoard)
+ 
+    def remove(self,card,spritelist):
+        """Remove card from spritelist and return it"""
+        for i,card_image in enumerate(spritelist):
+            if card_image is card:
+                return spritelist.pop(i)
+ 
     def updateScreen(self):
         self.TurnReport.text = f"Turn:{self.Turn}"
 
@@ -242,13 +354,12 @@ class GameView(arcade.View):
             winner = "Tie!"
         elif player1.Health <=0:
             loss_view = GameOverView()
-            loss_view.setup(message = f"You are defeated by {self.Game.Player2.Name}!")
+            loss_view.setup(message = f"You are victorious over {self.Game.Player2.Name}!")
             self.window.show_view(loss_view)
             winner = player2
         elif player2.Health <=0:
-            print(f"You are victorious against {self.Game.Player2.Name}!")
             loss_view = GameOverView()
-            loss_view.setup(message = f"You are defeated by {self.Game.Player2.Name}!")
+            loss_view.setup(message = f"You are defeated by {self.Game.Player1.Name}!")
             self.window.show_view(loss_view)
             winner = player1
         return winner
@@ -260,32 +371,51 @@ class GameView(arcade.View):
             pile = arcade.SpriteSolidColor(self.Spacing.MatWidth, self.Spacing.MatHeight,\
               mat_color)
             pile.position = (self.Spacing.Column[i],row_center_y)
-            print(f"Current pile position (column {i}):",pile.position)
             sprite_list.append(pile) 
   
     def on_show_view(self):
         """ This is run once when we switch to this view """
         arcade.set_background_color(arcade.color.AMAZON)
 
+    def on_update(self,delta_time):
+        """Update things"""
+        for i,c in enumerate(self.Game.Player1.Hand):
+            c.CardImage.position = self.PlayerHandMat[i].position
+        
+        for i,c in enumerate(self.Game.Player1.Board):
+            c.CardImage.position = self.PlayerBoardMat[i].position
+        
+        for i,c in enumerate(self.Game.Player2.Hand):
+            c.CardImage.position = self.OpponentHandMat[i].position
+         
+        for i,c in enumerate(self.Game.Player2.Board):
+            c.CardImage.position = self.OpponentBoardMat[i].position
+
+
+        for r in self.Reports:
+            r.update()
+
     def on_draw(self):
         """ Draw this view """
         self.clear()
-        self.PlayerHandBoard.draw()
+        
+        self.PlayerBoardMat.draw()
         self.PlayerBoard.draw()
+
+        self.LocationBoardMat.draw()
         self.LocationBoard.draw()
+
+        self.OpponentBoardMat.draw()
         self.OpponentBoard.draw()
-        self.OpponentHandBoard.draw()
+        
+        self.PlayerHandMat.draw()
         self.PlayerHand.draw()
+        
+        self.OpponentHandMat.draw()
         self.OpponentHand.draw()
 
-        self.TurnReport.draw()
-
-    #def on_mouse_press(self, _x, _y, _button, _modifiers):
-    #    """ If the user presses the mouse button, start the game. """
-    #    map_view = MapView()
-    #    map_view.setup()
-    #    self.window.show_view(map_view)
-
+        for r in self.Reports:
+            r.draw()
 
 
 class SpaceManager(object):
@@ -714,12 +844,14 @@ class DraftView(arcade.View):
 class CardImage(arcade.Sprite):
     """ Card sprite """
 
-    def __init__(self, card_image_fp, scale=1):
+    def __init__(self, card_image_fp, scale=1,card=None):
         """ Card constructor """
 
         self.CardImage = card_image_fp
         self.Active = True
-
+        self.Card = card
+        if self.Card:
+            self.Card.CardImage = self
         # Call the parent
         super().__init__(self.CardImage, scale, hit_box_algorithm="None")
 
