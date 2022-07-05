@@ -59,7 +59,7 @@ def filename_from_card_name(card_name:str,location:str="",number:int=1,\
     return f
 
 def get_prompt(card_name:str,location:str="",card_type:str="",artist:str="",\
-  epithet:str="",art_type:str="",card_text:str="",allowed_special_chars ="(). ") -> str:
+  epithet:str="",art_type:str="",card_text:str="",allowed_special_chars ="(). ",faction="") -> str:
     """Return an art prompt for card image generation"""
     img_description = f"{card_name}"
     print(img_description)
@@ -87,15 +87,19 @@ def get_prompt(card_name:str,location:str="",card_type:str="",artist:str="",\
     print(img_description)
 
     if card_type and location:
-        img_description += f"{card_name} is a type of  {card_type} shown in a place called {location}."
+        img_description += f" {card_name} is a type of  {card_type} shown in a place called {location}."
     elif card_type:
-        img_description += f"{card_name} is a type of {card_type}. "
+        img_description += f" {card_name} is a type of {card_type}. "
 
-    if card_text and epithet and art_type:
-        img_description += f"In the {epithet} {art_type} the {card_name} is shown to {card_text}"
-    elif card_text:
-        img_description += f"The {card_name} is shown to {card_text}" 
+    if faction:
+        img_description += f" {card_name} is part of a group called {faction}."
     
+    if card_text and epithet and art_type:
+        img_description += f" In the {epithet} {art_type} the {card_name} is shown to {card_text}"
+    elif card_text:
+        img_description += f" The {card_name} is shown to {card_text}" 
+   
+ 
     print(img_description)
     img_description = img_description.replace("  "," ")
     img_description = img_description.replace("Action","")
@@ -123,12 +127,13 @@ def get_location_dir(location,base_dir):
   
 def get_card_portrait_image(card_name,location,artist="",epithet="Amazing",\
    card_type="Character",art_type= "Fantasy Card Art",card_portrait_dir = "../images/card_portraits/",max_images=3,\
-   card_text = ""):
+   card_text = "",faction=""):
 
     location_dir_fp = get_location_dir(location,card_portrait_dir)
   
     img_description = get_prompt(card_name,location=location,artist=artist,\
-      epithet=epithet,art_type=art_type,card_type=card_type,card_text=card_text) 
+      epithet=epithet,art_type=art_type,\
+      card_type=card_type,card_text=card_text,faction=faction) 
     print("Generating image:",img_description)
 
     chrome_options = Options()

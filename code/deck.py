@@ -27,6 +27,11 @@ class Deck(object):
         if cards:
             self.Cards.extend(cards)
 
+    def __iter__(self):
+        """Iterate directly over self.Cards"""
+        for c in self.Cards:
+            yield c
+
     def draw(self,n_cards=1):
         drawn_cards = []
         for n in range(n_cards):

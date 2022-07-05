@@ -89,7 +89,7 @@ class Game(object):
         return self.Winner
 
     def doPhase(self,player,phase):
-        print(f"\n - Phase: {player.Name} {phase} -") 
+        self.Interface.report(f"\n - Phase: {player.Name} {phase} -","start of phase",{"new phase":phase}) 
         if phase == "Gain Mana":
             player.gainTotalMana(amount=1)
         
@@ -130,8 +130,6 @@ class Game(object):
                   player.Opponent.filter(player.Opponent.Board,positive_filter_method_name="hasAbility",\
                   positive_filter_kwargs={"ability":"Defend"})
                 
-                if targets_with_defender:
-                    print(f"The following enemy creatures have Defend: {[t.Name for t in targets_with_defender]}")
                 targets = []
                 if targets_with_defender and not attacker_ranged:
                     print("Some enemies have defender and attacker is not ranged ... it must target a creature with defender")
@@ -164,12 +162,14 @@ class Game(object):
                     target = choice(targets_with_defender)
                 else:
                     target = player.Opponent
-                print(f"{creature.Name} attacks {target.Name} for {creature.Power} damage")
+                self.Interface.report(f"{creature.Name} attacks {target.Name} for {creature.Power} damage","creature attacks",\
+                  {"player":player,"creature":creature,"target":target})
                 target.takeDamage(creature.Power) 
             elif creature.Behavior == "Defend":
                 pass
             elif creature.Behavior == "Activate":
-                print(f"{creature.Name} is activating it's ability")
+                self.Interface.Report(f"{creature.Name} is activating it's ability",\
+                  "creature activates ability:"+",".join([str(e) for e in creature.Effects]),{"player":player,"creature":creature})
                 for e in creature.Effects:
                     e.Controller = creature.Controller
                 

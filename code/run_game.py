@@ -81,17 +81,18 @@ class MapView(arcade.View):
         self.clear()
         arcade.draw_text("Map Screen", self.window.width / 2, self.window.height / 2,
                          arcade.color.WHITE, font_size=50, anchor_x="center")
-        arcade.draw_text("Click to advance (skips to GameView for testing)", self.window.width / 2, self.window.height / 2-75,
+        arcade.draw_text("Click to advance (holding SHIFT while clicking skips to GameView for testing)", self.window.width / 2, self.window.height / 2-75,
                          arcade.color.WHITE, font_size=20, anchor_x="center")
 
-    def on_mouse_press(self, _x, _y, _button, _modifiers):
+    def on_mouse_press(self, _x, _y, _button, modifiers):
         """ If the user presses the mouse button, start the game. """
         draft_view = DraftView()
         draft_view.setup()
         self.window.show_view(draft_view)
-        #game_view = GameView()
-        #game_view.setup()
-        #self.window.show_view(game_view)
+        if modifiers & arcade.key.MOD_SHIFT:
+            game_view = GameView()
+            game_view.setup()
+            self.window.show_view(game_view)
 
 
 
@@ -101,7 +102,7 @@ class TextReport(object):
     def __init__(self,variables:dict,format_text:str,row:int,column:int,\
         spacing_manager,normal_color=arcade.csscolor.WHITE,
         alt_color=arcade.csscolor.YELLOW, color_change_variable=None,
-        color_change_threshold=None,font_size:int=20):
+        color_change_threshold=None,font_size:int=20,xy_coords=None):
         """Create a dynamic text report. 
         variables -- a dict with keys for strings and values as links to properties\
         of other class instances (e.g. {"Health": self.Player1} will use getattr to access Health from Player1})
@@ -120,10 +121,16 @@ class TextReport(object):
         format_dict = self.makeFormatDict()
         starting_text = format_text.format(**format_dict)
         self.Spacing = spacing_manager
+
+        if not xy_coords:
+            xy_coords = []
+            xy_coords.append(self.Spacing.Column[column])
+            xy_coords.append(self.Spacing.Row[row])
+
         self.TextDisplay = arcade.Text(
             starting_text,
-            self.Spacing.Column[column],
-            self.Spacing.Row[row],
+            xy_coords[0],
+            xy_coords[1],
             self.Color,
             self.FontSize,
             bold = True,
@@ -212,15 +219,30 @@ class GameView(arcade.View):
         player_2_deck = Deck(player_2_deck_cards)
         print(f"{player_2_name} decklist:", player_2_deck.toDeckList())
         player_2 = Player(name = player_2_name,deck=player_2_deck)
+        
+       
+        for c in player_1.Deck:
+                card_sprite = CardImage(c.CardImageFilepath,scale=self.Spacing.CardScale,card=c)
+                c.CardImage = card_sprite
+
+        for c in player_2.Deck:
+                card_sprite = CardImage(c.CardImageFilepath,scale=self.Spacing.CardScale,card=c)
+                c.CardImage = card_sprite
 
         print("ABOUT TO RUN GAME!!!!!")
-        #Run game
+
+        #Set some properties for the game
         self.Game = Game(player_1,player_2,game_interface=self)
         self.Turn = 0 
         self.GameOrder = [player_1,player_2]
+        self.ActivePlayer = self.GameOrder[0]
         self.CurrentTurnOver = True
+        self.CurrentPhaseOver = True
         self.Winner = None
-
+        self.CurrentPhaseIndex = 0
+        self.CurrentPhase = None
+        self.Timer = 2.0
+        self.MaxTimer = 2.0
         #Put some text in the upper right
         title_font_size = 20
 
@@ -228,8 +250,8 @@ class GameView(arcade.View):
         self.Player2 = player_2
         self.Reports = []
 
-        
-        
+        self.Events = [] #gameplay events to be shown
+        self.LastEvent = "Game is Starting"        
         self.Player2HealthReport = TextReport(variables = {"Name":self.Player2,"Health":self.Player2,"MaxHealth":self.Player2},row=4,column=6,\
           format_text="{Name} {Health}/{MaxHealth}",spacing_manager=self.Spacing)
         self.Reports.append(self.Player2HealthReport)
@@ -250,19 +272,27 @@ class GameView(arcade.View):
           format_text="{Name}: {Health}/{MaxHealth}",spacing_manager=self.Spacing,color_change_variable="Health",color_change_threshold=10)
         self.Reports.append(self.Player1HealthReport)
 
+        self.LastEventReport = TextReport(variables = {"LastEvent":self},xy_coords = (self.Spacing.MatWidth/2,self.Spacing.MatHeight/4),\
+          format_text="{LastEvent}",row=None,column=None,spacing_manager=self.Spacing,font_size=14)
+        self.Reports.append(self.LastEventReport)
+
         self.Player1.draw(3)
         self.Player2.draw(3)
 
-    def report(self,free_text,specific_event = None,event_properties={}):
+    def report(self,free_text,specific_event,event_properties):
+        self.Events.append((free_text,specific_event,event_properties))
+        
+
+    def showEvent(self,free_text,specific_event = None,event_properties={}):
         """Key function for connecting game to game view"""
-        print(free_text)
+
+        self.LastEvent = free_text
+
         if specific_event == 'draw':
             cards = event_properties['drawn cards']
             player = event_properties['player']
             for c in cards:
-                print("Showing card:",c.Name)
-                card_sprite = CardImage(c.CardImageFilepath,scale=self.Spacing.CardScale,card=c)
-                c.CardImage = card_sprite 
+                card_sprite = c.CardImage
                 #put the new card sprite in the right column of the player's hand
                 if player is self.Game.Player1:    
                     col = len(self.PlayerHand)
@@ -272,9 +302,8 @@ class GameView(arcade.View):
                     col = len(self.OpponentHand)
                     self.OpponentHand.append(card_sprite)
                     row = 4
-                print("Setting card sprite position (col,row) to:",col,row)
                 card_sprite.position = self.Spacing.Column[col],self.Spacing.Row[row]
-                print("card_sprite.position:",card_sprite.position)
+        
         if specific_event == 'new_phase':
                 pass
 
@@ -322,28 +351,52 @@ class GameView(arcade.View):
         self.TurnReport.text = f"Turn:{self.Turn}"
 
     def on_mouse_press(self, _x, _y, _button, _modifiers):
-        """ If the user presses the mouse button, start the game. """
+        """ If the user presses the mouse button, show the next event """
+        self.showNext()
+
+    def showNext(self):
        
         #Right now the only effect of pressing the mouse is 
         #to advance the turn
-
+        if self.Events:
+            earliest_event = self.Events[0]
+            free_text = earliest_event[0]
+            self.LastEventShown = free_text 
+            self.showEvent(*earliest_event)
+            self.Events.remove(earliest_event)
+            return True #Only advance the turn if there are no more events
         #Don't let turns stop partway through due to mouse presses
-        if self.CurrentTurnOver:          
-            self.nextTurn()          
+        if self.CurrentPhaseOver:          
+            self.nextPhase()          
 
     def nextTurn(self):
         """advance the turn by 1"""
         self.Turn += 1
+        self.CurrentPhaseIndex = 0
+        self.CurrentPhase = self.Game.Phases[0]
         self.updateScreen()
         self.CurrentTurnOver = False
         
-        for player in self.Game.PlayOrder:
-            self.Game.takeTurn(player)  
-        
+        self.ActivePlayer = self.ActivePlayer.Opponent
+        #self.Game.takeTurn(player)  
+            
         winner = self.checkForWinner(self.Game.Player1,self.Game.Player2)
         self.CurrentTurnOver = True
  
-
+    def nextPhase(self):
+        self.PhaseOver = False
+        player = self.ActivePlayer
+        print(self.CurrentPhase)
+        print(self.CurrentPhaseIndex)
+        print(self.Game.Phases)
+        self.CurrentPhase = self.Game.Phases[self.CurrentPhaseIndex]
+        self.Game.doPhase(player,self.CurrentPhase)
+        self.PhaseOver = True
+        self.CurrentPhaseIndex += 1
+        if not self.CurrentPhaseIndex < len(self.Game.Phases):
+            self.CurrentPhaseIndex = 0
+            self.nextTurn()
+        
     def checkForWinner(self,player1,player2):
         winner = None
         if player1.Health <= 0 and player2.Health <=0:
@@ -395,6 +448,12 @@ class GameView(arcade.View):
         for r in self.Reports:
             r.update()
 
+        if self.Timer > 0:
+            self.Timer -= delta_time
+        elif self.Timer <= 0 and self.CurrentPhaseOver:
+            self.Timer = self.MaxTimer
+            self.showNext()
+            
     def on_draw(self):
         """ Draw this view """
         self.clear()

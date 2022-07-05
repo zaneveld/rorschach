@@ -122,7 +122,7 @@ class Card(object):
         return required_targets_assigned
        
 
-    def makeCardImage(self,card_back_filename="random",text="",power=None,toughness=None):
+    def makeCardImage(self,card_back_filename="random",text="",power=None,toughness=None,faction=""):
         cost = self.Cost  
         if self.Types:
             card_type = " and ".join(self.Types) 
@@ -140,7 +140,7 @@ class Card(object):
               card_portrait_filename="generate",\
               card_back_filename=card_back_filename,\
               attack=power,health=toughness,\
-              cost=cost,card_text = text,card_type=card_type)
+              cost=cost,card_text = text,card_type=card_type,faction=faction)
         else:
             card_image_fp = os.path.join(card_image_dir,card_filename)
         return card_image_fp
@@ -166,12 +166,13 @@ class Card(object):
 class Spell(Card):
     def __init__(self,card_name,mana_cost,effects,effect_library,\
       location="",behavior="Temporary Effect",controller = None,types=[],supertype="Spell",portrait_fp=None,\
-      card_back_filename="random"):
-        """A spell 
+      card_back_filename="random",faction=""):
+        """A Spell 
         card_name -- the name of the card
         mana_cost -- the mana cost of the spell (integer)
         effects -- a list of Effect objects
         """
+
         self.Name = card_name
         self.Cost = mana_cost
         self.CardType = supertype
@@ -183,11 +184,13 @@ class Spell(Card):
         self.Location = location
         print("Current Location:",location)
         self.CardBackFilename = card_back_filename
+        self.Faction = faction
+
         if self.Effects:
             card_text = ", ".join([str(effect) for effect in self.Effects])
         else:
             card_text = ""
-        self.CardImageFilepath = self.makeCardImage(self.CardBackFilename,text=card_text)
+        self.CardImageFilepath = self.makeCardImage(self.CardBackFilename,text=card_text,faction=faction)
     
     def __repr__(self):
         effects = self.Effects
@@ -222,15 +225,16 @@ class Location(Card):
         self.Portrait = portrait_fp
         self.CardBackFilename = card_back_filename
         card_text = "Action — "+self.Behavior + "\n" + ", ".join([str(effect) for effect in self.Effects]) +"\n " + ", ".join(self.StaticAbilities)
-        self.CardImageFilepath = self.makeCardImage(card_back_filename,text=card_text,power=self.Power,toughness=self.Toughness) 
+        self.CardImageFilepath = self.makeCardImage(card_back_filename,text=card_text,power=self.Power,toughness=self.Toughness,faction=self.Faction) 
 
 class Creature(Card):
     def __init__(self,card_name,effect_library,mana_cost=0,location="",\
         power=0,toughness=0,\
         effects="{}",controller=None,static_abilities="",\
-        behavior="Attack Random Enemy",supertype="Creature",types="",portrait_fp=None,card_back_filename="random"):
+        behavior="Attack Random Enemy",supertype="Creature",types="",portrait_fp=None,card_back_filename="random",faction=""):
         """Make a new creature card
         """
+        
         self.Name = card_name
         self.Dead = False
         self.Power = int(power)
@@ -249,13 +253,14 @@ class Creature(Card):
         self.setController(controller)
         self.Influence = 0
         self.Corruption = 0
+        self.Faction = faction
 
         #Set up card image
         self.Portrait = portrait_fp
         print("Current Location:",location)
         self.CardBackFilename = card_back_filename
         card_text = "Action — "+self.Behavior + "\n" + ", ".join([str(effect) for effect in self.Effects]) +"\n " + ", ".join(self.StaticAbilities)
-        self.CardImageFilepath = self.makeCardImage(card_back_filename,text=card_text,power=self.Power,toughness=self.Toughness)
+        self.CardImageFilepath = self.makeCardImage(card_back_filename,text=card_text,power=self.Power,toughness=self.Toughness,faction=self.Faction)
 
     def __repr__(self):
         if self.checkIfDead():
@@ -347,10 +352,10 @@ class Creature(Card):
     def die(self):
         """Remove the creature"""
         self.Dead = True
-        print(f"{self.Name} dies")
         for i,creature in enumerate(self.Controller.Board):
                 if creature == self:
                     self.Controller.Board.pop(i)
+                    self.Controller.Game.Interface.report(f"{self.Name} dies","creature dies",{"player":self.Controller,"creature":self})
                     break #don't kill later copies
     
     def isDamaged(self):

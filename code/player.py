@@ -21,7 +21,7 @@ class Player(object):
         self.Opponent = None
         self.Deck = deck
         self.Deck.shuffle()
-        self.Hand = self.Deck.draw(3)
+        self.Hand = []
         self.CardType = "Player"
         self.Board = []
         self.MaxBoardSize = 7
@@ -153,7 +153,7 @@ class Player(object):
     def gainTotalMana(self,amount):
         """Gain total mana"""
         self.TotalMana += amount
-        print(f"{self.Name} goes up to {self.TotalMana} mana")    
+        self.Game.Interface.report(f"{self.Name} goes up to {self.TotalMana} mana","gain mana",{"player":self,"amount":amount})    
     
     def gainCurrentMana(self,amount):
         """Gain current mana"""
@@ -162,9 +162,8 @@ class Player(object):
     def draw(self,n_cards=1):
         """Draw n cards"""
 
-        print(f"{self.Name} drew the following {n_cards} cards:")
         drawn_cards = self.Deck.draw(n_cards)
-        self.Game.Interface.report(",".join(map(str,drawn_cards)),"draw",{"player":self,"drawn cards":drawn_cards})
+        self.Game.Interface.report(f"{self.Name} drew {n_cards}:"+",".join(map(str,drawn_cards)),"draw",{"player":self,"drawn cards":drawn_cards})
         self.Hand.extend(drawn_cards)        
 
     def removeCardFromHand(self,card):
@@ -185,7 +184,9 @@ class Player(object):
             random_card_in_hand = choice(self.Hand)
             current_discard = self.removeCardFromHand(random_card_in_hand)
             discarded_cards.append(current_discard)
-
+        self.Game.Interface.report(f"{self.Name} discarded {n_cards}:"+str([c.Name for c in discarded_cards]),\
+          "discard",{"player":self,"discarded cards":discarded_cards})
+    
     def playCard(self,card,verbose=True):
         """Play a card from hand"""
 
@@ -197,20 +198,28 @@ class Player(object):
             print("Can't play card - not enough mana")
             return None
         else:
-            card = self.removeCardFromHand(card)
+            
             if card.CardType == "Creature":
                 #print("Playing card as creature")
                 if len(self.Board) < self.MaxBoardSize: 
+                    self.Game.Interface.report(f"{self.Name} plays creature {card.Name}",\
+                      "play creature",{"player":self,"creature":card,"position":len(self.Board)+1})
+                    card = self.removeCardFromHand(card)
                     self.Board.append(card)
                     print(f"{self.Name} plays {card.Name}")
                     self.CurrentMana -= card.Cost
                     card.Controller = self
+            
             elif card.CardType == "Spell":
+                self.Game.Interface.report(f"{self.Name} plays spell {card.Name}",\
+                  "play spell",{"player":self,"spell":card,"position":len(self.Board)+1})
+                card = self.removeCardFromHand(card)
                 self.CurrentMana -= card.Cost
                 card.setController(self)
                 print(f"{self.Name} plays {card.Name}")
                 card.getTargets()
-                card.activate()  
+                card.activate()
+                self.Graveyard.append(card)  
             else:
                 raise NotImplementedError(f"Card type {card.CardType} not yet supported")
     

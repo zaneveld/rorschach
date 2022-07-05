@@ -80,7 +80,7 @@ def adjust_image(source_image,contrast = 1.0,brightness = 1.0, color=1.0):
 def make_game_card(title:str,location:str,attack:int=None,health:int=None,cost:int=1,\
   card_text:str = "",card_type:str="",card_portrait_filename:str="generate",card_back_filename:str="random",\
   base_card_portrait_dir:str="../data/images/card_portraits/",card_back_dir:str = "../data/images/card_backgrounds",
-  output_dir:str="../data/images/cards/") -> str:
+  output_dir:str="../data/images/cards/",faction="") -> str:
     """Make a game card image by superimposing a cardback image with a generated portrait and text
 
     Returns: location of generated image file
@@ -178,7 +178,8 @@ def make_game_card(title:str,location:str,attack:int=None,health:int=None,cost:i
             
             #So we just pass in the base directory
             card_portrait_images = get_card_portrait_image(title,location,
-              card_type=card_type,card_portrait_dir=base_card_portrait_dir,card_text=card_text)
+              card_type=card_type,card_portrait_dir=base_card_portrait_dir,\
+              card_text=card_text,faction=faction)
             
             card_portrait_fp = choice(card_portrait_images)
     
